@@ -1,18 +1,24 @@
 {
+  "../../node_modules/jspdf/dist/jspdf.es.min.js -> canvg": {
+    "id": "../../node_modules/jspdf/dist/jspdf.es.min.js -> canvg",
+    "files": [
+      "static/chunks/node_modules_canvg_lib_index_es_js.js"
+    ]
+  },
+  "../../node_modules/jspdf/dist/jspdf.es.min.js -> dompurify": {
+    "id": "../../node_modules/jspdf/dist/jspdf.es.min.js -> dompurify",
+    "files": [
+      "static/chunks/node_modules_dompurify_dist_purify_es_mjs.js"
+    ]
+  },
+  "../../node_modules/jspdf/dist/jspdf.es.min.js -> html2canvas": {
+    "id": "../../node_modules/jspdf/dist/jspdf.es.min.js -> html2canvas",
+    "files": [
+      "static/chunks/node_modules_html2canvas_dist_html2canvas_js.js"
+    ]
+  },
   "[id].tsx -> @/components/Navbar": {
     "id": "[id].tsx -> @/components/Navbar",
-    "files": [
-      "static/chunks/src_components_Navbar_tsx-_25532.js"
-    ]
-  },
-  "dashboard.tsx -> @/components/Navbar": {
-    "id": "dashboard.tsx -> @/components/Navbar",
-    "files": [
-      "static/chunks/src_components_Navbar_tsx-_25530.js"
-    ]
-  },
-  "index.tsx -> @/components/Navbar": {
-    "id": "index.tsx -> @/components/Navbar",
     "files": [
       "static/chunks/src_components_Navbar_tsx-_25531.js"
     ]
@@ -20,7 +26,7 @@
   "indexloggedin.tsx -> @/components/Navbar": {
     "id": "indexloggedin.tsx -> @/components/Navbar",
     "files": [
-      "static/chunks/src_components_Navbar_tsx-_25531.js"
+      "static/chunks/src_components_Navbar_tsx-_25530.js"
     ]
   }
 }
