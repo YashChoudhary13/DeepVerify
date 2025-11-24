@@ -76,7 +76,7 @@ export default function Navbar() {
       setUser(null);
       try {
         localStorage.removeItem(AUTH_USER_KEY);
-      } catch {}
+      } catch { }
       return;
     }
 
@@ -95,7 +95,7 @@ export default function Navbar() {
       // update cached user for instant future renders
       try {
         localStorage.setItem(AUTH_USER_KEY, JSON.stringify(normalized));
-      } catch {}
+      } catch { }
     } catch (err: any) {
       if (strictOnAuthFail && /401|Unauthorized/i.test(String(err?.message ?? ""))) {
         setSignedIn(false);
@@ -103,7 +103,7 @@ export default function Navbar() {
         try {
           localStorage.removeItem(AUTH_USER_KEY);
           localStorage.removeItem(AUTH_TOKEN_KEY);
-        } catch {}
+        } catch { }
       } else {
         setUser(null);
       }
@@ -155,7 +155,7 @@ export default function Navbar() {
       try {
         localStorage.removeItem(AUTH_TOKEN_KEY);
         localStorage.removeItem(AUTH_USER_KEY);
-      } catch {}
+      } catch { }
       window.dispatchEvent(new CustomEvent("auth-change", { detail: { source: "logout" } }));
       setSignedIn(false);
       setUser(null);
@@ -197,81 +197,81 @@ export default function Navbar() {
       : user.firstName ?? user.email ?? "User"
     : "";
 
- return (
-  <header className="fixed top-0 left-0 right-0 z-50 bg-background/80 backdrop-blur-sm border-b">
-    <nav className="container mx-auto px-4 h-16 flex items-center justify-between">
-      <Link href="/" className="flex items-center gap-2 cursor-pointer">
-        <Shield className="h-6 w-6 text-primary" />
-        <span className="text-xl font-bold tracking-tight">DeepVerify</span>
-      </Link>
+  return (
+    <header className="fixed top-0 left-0 right-0 z-50 bg-background/80 backdrop-blur-sm border-b">
+      <nav className="container mx-auto px-4 h-16 flex items-center justify-between">
+        <Link href={signedIn ? "/indexloggedin" : "/"} className="flex items-center gap-2 cursor-pointer">
+          <Shield className="h-6 w-6 text-primary" />
+          <span className="text-xl font-bold tracking-tight">DeepVerify</span>
+        </Link>
 
-      <div className="flex items-center gap-4">
-        {/* Language Selector Dropdown */}
-        <DropdownMenu>
-          <DropdownMenuTrigger asChild>
-            <Button variant="ghost" size="sm" className="gap-2">
-              <Globe className="h-4 w-4" />
-              <span className="hidden sm:inline">
-                {LANGUAGES.find(l => l.code === currentLocale)?.nativeName || "English"}
-              </span>
-            </Button>
-          </DropdownMenuTrigger>
-          <DropdownMenuContent align="end" className="w-48">
-            {LANGUAGES.map((lang) => (
-              <DropdownMenuItem
-                key={lang.code}
-                onClick={() => handleLanguageChange(lang.code)}
-                className="flex items-center justify-between cursor-pointer"
+        <div className="flex items-center gap-4">
+          {/* Language Selector Dropdown */}
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button variant="ghost" size="sm" className="gap-2">
+                <Globe className="h-4 w-4" />
+                <span className="hidden sm:inline">
+                  {LANGUAGES.find(l => l.code === currentLocale)?.nativeName || "English"}
+                </span>
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end" className="w-48">
+              {LANGUAGES.map((lang) => (
+                <DropdownMenuItem
+                  key={lang.code}
+                  onClick={() => handleLanguageChange(lang.code)}
+                  className="flex items-center justify-between cursor-pointer"
+                >
+                  <div className="flex flex-col">
+                    <span className="font-medium">{lang.nativeName}</span>
+                    <span className="text-xs text-muted-foreground">{lang.name}</span>
+                  </div>
+                  {currentLocale === lang.code && (
+                    <Check className="h-4 w-4 text-primary" />
+                  )}
+                </DropdownMenuItem>
+              ))}
+            </DropdownMenuContent>
+          </DropdownMenu>
+
+          {signedIn ? (
+            <>
+              <Link href="/dashboard">
+                <span className="hover:text-indigo-600 cursor-pointer">{t("navbar.dashboard")}</span>
+              </Link>
+
+              <Link href="/membership">
+                <span className="hover:text-indigo-600 cursor-pointer">{t("navbar.membership")}</span>
+              </Link>
+
+              <Link href="/support">
+                <span className="hover:text-indigo-600 cursor-pointer">{t("navbar.support")}</span>
+              </Link>
+
+              <button
+                onClick={handleLogout}
+                className="px-3 py-2 bg-red-50 text-red-700 rounded hover:bg-red-100"
               >
-                <div className="flex flex-col">
-                  <span className="font-medium">{lang.nativeName}</span>
-                  <span className="text-xs text-muted-foreground">{lang.name}</span>
-                </div>
-                {currentLocale === lang.code && (
-                  <Check className="h-4 w-4 text-primary" />
-                )}
-              </DropdownMenuItem>
-            ))}
-          </DropdownMenuContent>
-        </DropdownMenu>
+                {t("navbar.signOut")}
+              </button>
+            </>
+          ) : (
+            <>
+              <Button asChild data-testid="button-signin">
+                <Link href="/login">{t("navbar.signIn")}</Link>
+              </Button>
 
-        {signedIn ? (
-          <>
-            <Link href="/dashboard">
-              <span className="hover:text-indigo-600 cursor-pointer">{t("navbar.dashboard")}</span>
-            </Link>
-
-            <Link href="/membership">
-              <span className="hover:text-indigo-600 cursor-pointer">{t("navbar.membership")}</span>
-            </Link>
-
-            <Link href="/support">
-              <span className="hover:text-indigo-600 cursor-pointer">{t("navbar.support")}</span>
-            </Link>
-
-            <button
-              onClick={handleLogout}
-              className="px-3 py-2 bg-red-50 text-red-700 rounded hover:bg-red-100"
-            >
-              {t("navbar.signOut")}
-            </button>
-          </>
-        ) : (
-          <>
-            <Button asChild data-testid="button-signin">
-              <Link href="/login">{t("navbar.signIn")}</Link>
-            </Button>
-
-            <Link
-              href="/register"
-              className="px-4 py-2 bg-slate-100 text-slate-700 rounded hover:bg-slate-200"
-            >
-              {t("navbar.signUp")}
-            </Link>
-          </>
-        )}
-      </div>
-    </nav>
-  </header>
-);
+              <Link
+                href="/register"
+                className="px-4 py-2 bg-slate-100 text-slate-700 rounded hover:bg-slate-200"
+              >
+                {t("navbar.signUp")}
+              </Link>
+            </>
+          )}
+        </div>
+      </nav>
+    </header>
+  );
 }
