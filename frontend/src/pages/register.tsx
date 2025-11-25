@@ -5,6 +5,7 @@ import Link from "next/link";
 import { serverSideTranslations } from "next-i18next/serverSideTranslations";
 import { useTranslation } from "next-i18next";
 import { register, login } from "@/lib/api";
+import { ModeToggle } from "@/components/mode-toggle";
 
 export async function getServerSideProps({ locale }: { locale: string }) {
   return {
@@ -17,7 +18,7 @@ export async function getServerSideProps({ locale }: { locale: string }) {
 export default function RegisterPage() {
   const router = useRouter();
   const { t, ready } = useTranslation("common");
-  
+
   // Helper to safely get translations
   const getText = (key: string, fallback: string) => {
     if (!ready) return fallback;
@@ -55,10 +56,10 @@ export default function RegisterPage() {
     try {
       // Register user
       await register({ username, email, password });
-      
+
       // Auto-login after registration
       await login({ username, password });
-      
+
       router.push("/indexloggedin");
     } catch (err: any) {
       setError(err.message || getText("register.registrationFailed", "Registration failed"));
@@ -68,29 +69,32 @@ export default function RegisterPage() {
   };
 
   return (
-    <div className="min-h-screen bg-slate-50 flex items-center justify-center">
+    <div className="min-h-screen bg-background flex items-center justify-center relative">
+      <div className="absolute top-4 right-4">
+        <ModeToggle />
+      </div>
       <Head>
         <title>Register — DeepVerify</title>
       </Head>
 
-      <div className="bg-white rounded-xl shadow-lg p-8 w-full max-w-md">
+      <div className="bg-card rounded-xl shadow-lg p-8 w-full max-w-md border border-border">
         <div className="text-center mb-8">
-          <div className="h-12 w-12 bg-indigo-600 text-white font-bold rounded-md flex items-center justify-center mx-auto mb-4">
+          <div className="h-12 w-12 bg-primary text-primary-foreground font-bold rounded-md flex items-center justify-center mx-auto mb-4">
             D
           </div>
-          <h1 className="text-2xl font-bold text-slate-800">{getText("register.title", "Create Account")}</h1>
-          <p className="text-slate-600 mt-2">{getText("register.subtitle", "Sign up to get started")}</p>
+          <h1 className="text-2xl font-bold text-foreground">{getText("register.title", "Create Account")}</h1>
+          <p className="text-muted-foreground mt-2">{getText("register.subtitle", "Sign up to get started")}</p>
         </div>
 
         <form onSubmit={handleSubmit} className="space-y-6">
           {error && (
-            <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded">
+            <div className="bg-destructive/10 border border-destructive/20 text-destructive px-4 py-3 rounded">
               {error}
             </div>
           )}
 
           <div>
-            <label htmlFor="username" className="block text-sm font-medium text-slate-700 mb-2">
+            <label htmlFor="username" className="block text-sm font-medium text-foreground mb-2">
               {getText("register.username", "Username")}
             </label>
             <input
@@ -99,13 +103,13 @@ export default function RegisterPage() {
               value={username}
               onChange={(e) => setUsername(e.target.value)}
               required
-              className="w-full px-4 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
+              className="w-full px-4 py-2 bg-background border border-input rounded-lg focus:ring-2 focus:ring-ring focus:border-ring text-foreground placeholder:text-muted-foreground"
               placeholder={getText("register.usernamePlaceholder", "Choose a username")}
             />
           </div>
 
           <div>
-            <label htmlFor="email" className="block text-sm font-medium text-slate-700 mb-2">
+            <label htmlFor="email" className="block text-sm font-medium text-foreground mb-2">
               {getText("register.email", "Email")}
             </label>
             <input
@@ -114,13 +118,13 @@ export default function RegisterPage() {
               value={email}
               onChange={(e) => setEmail(e.target.value)}
               required
-              className="w-full px-4 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
+              className="w-full px-4 py-2 bg-background border border-input rounded-lg focus:ring-2 focus:ring-ring focus:border-ring text-foreground placeholder:text-muted-foreground"
               placeholder={getText("register.emailPlaceholder", "Enter your email")}
             />
           </div>
 
           <div>
-            <label htmlFor="password" className="block text-sm font-medium text-slate-700 mb-2">
+            <label htmlFor="password" className="block text-sm font-medium text-foreground mb-2">
               {getText("register.password", "Password")}
             </label>
             <input
@@ -130,13 +134,13 @@ export default function RegisterPage() {
               onChange={(e) => setPassword(e.target.value)}
               required
               minLength={6}
-              className="w-full px-4 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
+              className="w-full px-4 py-2 bg-background border border-input rounded-lg focus:ring-2 focus:ring-ring focus:border-ring text-foreground placeholder:text-muted-foreground"
               placeholder={getText("register.passwordPlaceholder", "Create a password (min 6 characters)")}
             />
           </div>
 
           <div>
-            <label htmlFor="confirmPassword" className="block text-sm font-medium text-slate-700 mb-2">
+            <label htmlFor="confirmPassword" className="block text-sm font-medium text-foreground mb-2">
               {getText("register.confirmPassword", "Confirm Password")}
             </label>
             <input
@@ -145,7 +149,7 @@ export default function RegisterPage() {
               value={confirmPassword}
               onChange={(e) => setConfirmPassword(e.target.value)}
               required
-              className="w-full px-4 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
+              className="w-full px-4 py-2 bg-background border border-input rounded-lg focus:ring-2 focus:ring-ring focus:border-ring text-foreground placeholder:text-muted-foreground"
               placeholder={getText("register.confirmPasswordPlaceholder", "Confirm your password")}
             />
           </div>
@@ -153,16 +157,16 @@ export default function RegisterPage() {
           <button
             type="submit"
             disabled={loading}
-            className="w-full bg-indigo-600 text-white py-2 px-4 rounded-lg hover:bg-indigo-700 disabled:opacity-50 disabled:cursor-not-allowed font-medium"
+            className="w-full bg-primary text-primary-foreground py-2 px-4 rounded-lg hover:bg-primary/90 disabled:opacity-50 disabled:cursor-not-allowed font-medium"
           >
             {loading ? getText("register.creatingAccount", "Creating account...") : getText("register.createAccount", "Create Account")}
           </button>
         </form>
 
         <div className="mt-6 text-center">
-          <p className="text-slate-600">
+          <p className="text-muted-foreground">
             {getText("register.haveAccount", "Already have an account?")}{" "}
-            <Link href="/login" className="text-indigo-600 hover:text-indigo-700 font-medium">
+            <Link href="/login" className="text-primary hover:text-primary/90 font-medium">
               {getText("register.signIn", "Sign in")}
             </Link>
           </p>

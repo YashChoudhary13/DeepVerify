@@ -5,6 +5,7 @@ import Link from "next/link";
 import { serverSideTranslations } from "next-i18next/serverSideTranslations";
 import { useTranslation } from "next-i18next";
 import { login } from "@/lib/api";
+import { ModeToggle } from "@/components/mode-toggle";
 
 export async function getServerSideProps({ locale }: { locale: string }) {
   return {
@@ -51,29 +52,32 @@ export default function LoginPage() {
   };
 
   return (
-    <div className="min-h-screen bg-slate-50 flex items-center justify-center">
+    <div className="min-h-screen bg-background flex items-center justify-center relative">
+      <div className="absolute top-4 right-4">
+        <ModeToggle />
+      </div>
       <Head>
         <title>Login — DeepVerify</title>
       </Head>
 
-      <div className="bg-white rounded-xl shadow-lg p-8 w-full max-w-md">
+      <div className="bg-card rounded-xl shadow-lg p-8 w-full max-w-md border border-border">
         <div className="text-center mb-8">
-          <div className="h-12 w-12 bg-indigo-600 text-white font-bold rounded-md flex items-center justify-center mx-auto mb-4">
+          <div className="h-12 w-12 bg-primary text-primary-foreground font-bold rounded-md flex items-center justify-center mx-auto mb-4">
             D
           </div>
-          <h1 className="text-2xl font-bold text-slate-800">{getText("login.title", "Welcome Back")}</h1>
-          <p className="text-slate-600 mt-2">{getText("login.subtitle", "Sign in to your account")}</p>
+          <h1 className="text-2xl font-bold text-foreground">{getText("login.title", "Welcome Back")}</h1>
+          <p className="text-muted-foreground mt-2">{getText("login.subtitle", "Sign in to your account")}</p>
         </div>
 
         <form onSubmit={handleSubmit} className="space-y-6">
           {error && (
-            <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded">
+            <div className="bg-destructive/10 border border-destructive/20 text-destructive px-4 py-3 rounded">
               {error}
             </div>
           )}
 
           <div>
-            <label htmlFor="username" className="block text-sm font-medium text-slate-700 mb-2">
+            <label htmlFor="username" className="block text-sm font-medium text-foreground mb-2">
               {getText("login.username", "Username")}
             </label>
             <input
@@ -82,13 +86,13 @@ export default function LoginPage() {
               value={username}
               onChange={(e) => setUsername(e.target.value)}
               required
-              className="w-full px-4 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
+              className="w-full px-4 py-2 bg-background border border-input rounded-lg focus:ring-2 focus:ring-ring focus:border-ring text-foreground placeholder:text-muted-foreground"
               placeholder={getText("login.usernamePlaceholder", "Enter your username")}
             />
           </div>
 
           <div>
-            <label htmlFor="password" className="block text-sm font-medium text-slate-700 mb-2">
+            <label htmlFor="password" className="block text-sm font-medium text-foreground mb-2">
               {getText("login.password", "Password")}
             </label>
             <input
@@ -97,7 +101,7 @@ export default function LoginPage() {
               value={password}
               onChange={(e) => setPassword(e.target.value)}
               required
-              className="w-full px-4 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
+              className="w-full px-4 py-2 bg-background border border-input rounded-lg focus:ring-2 focus:ring-ring focus:border-ring text-foreground placeholder:text-muted-foreground"
               placeholder={getText("login.passwordPlaceholder", "Enter your password")}
             />
           </div>
@@ -105,16 +109,16 @@ export default function LoginPage() {
           <button
             type="submit"
             disabled={loading}
-            className="w-full bg-indigo-600 text-white py-2 px-4 rounded-lg hover:bg-indigo-700 disabled:opacity-50 disabled:cursor-not-allowed font-medium"
+            className="w-full bg-primary text-primary-foreground py-2 px-4 rounded-lg hover:bg-primary/90 disabled:opacity-50 disabled:cursor-not-allowed font-medium"
           >
             {loading ? getText("login.signingIn", "Signing in...") : getText("login.signIn", "Sign In")}
           </button>
         </form>
 
         <div className="mt-6 text-center">
-          <p className="text-slate-600">
+          <p className="text-muted-foreground">
             {getText("login.noAccount", "Don't have an account?")}{" "}
-            <Link href="/register" className="text-indigo-600 hover:text-indigo-700 font-medium">
+            <Link href="/register" className="text-primary hover:text-primary/90 font-medium">
               {getText("login.createOne", "Create one")}
             </Link>
           </p>

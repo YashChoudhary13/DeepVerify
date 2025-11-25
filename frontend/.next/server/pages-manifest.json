@@ -2,7 +2,11 @@
   "/_app": "pages/_app.js",
   "/_error": "pages/_error.js",
   "/_document": "pages/_document.js",
+  "/": "pages/index.js",
   "/dashboard": "pages/dashboard.js",
+  "/[id]": "pages/[id].js",
   "/indexloggedin": "pages/indexloggedin.js",
-  "/[id]": "pages/[id].js"
+  "/membership": "pages/membership.js",
+  "/support": "pages/support.js",
+  "/login": "pages/login.js"
 }

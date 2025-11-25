@@ -74,7 +74,7 @@ export default function Membership() {
           <div className="container mx-auto px-4 max-w-7xl">
             <div className="grid grid-cols-1 md:grid-cols-3 gap-6 items-start">
               {/* Left: Benefits */}
-              <div className="md:col-span-1 rounded-xl border bg-white p-6 shadow-sm">
+              <div className="md:col-span-1 rounded-xl border border-border bg-card p-6 shadow-sm">
                 <h2 className="text-xl font-semibold mb-3">{t("membership.whyUpgrade")}</h2>
                 <ul className="space-y-4 text-sm text-muted-foreground">
                   <li className="flex gap-3 items-start">
@@ -112,7 +112,7 @@ export default function Membership() {
               {/* Pricing cards */}
               <div className="md:col-span-2 grid grid-cols-1 md:grid-cols-2 gap-6">
                 {/* Monthly */}
-                <div className="rounded-xl border bg-white p-6 shadow-sm flex flex-col">
+                <div className="rounded-xl border border-border bg-card p-6 shadow-sm flex flex-col">
                   <div className="flex items-baseline justify-between">
                     <div>
                       <h3 className="text-2xl font-semibold">{t("membership.proMonthly")}</h3>
@@ -144,7 +144,7 @@ export default function Membership() {
                 </div>
 
                 {/* Yearly */}
-                <div className="rounded-xl border bg-white p-6 shadow-sm flex flex-col">
+                <div className="rounded-xl border border-border bg-card p-6 shadow-sm flex flex-col">
                   <div className="flex items-baseline justify-between">
                     <div>
                       <h3 className="text-2xl font-semibold">{t("membership.proYearly")}</h3>
@@ -178,7 +178,7 @@ export default function Membership() {
             </div>
 
             {/* FAQ */}
-            <div className="mt-10 rounded-xl border bg-white p-6 shadow-sm">
+            <div className="mt-10 rounded-xl border border-border bg-card p-6 shadow-sm">
               <h3 className="text-lg font-semibold mb-4">{t("membership.faq")}</h3>
 
               <div className="space-y-3 text-sm text-muted-foreground">

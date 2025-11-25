@@ -19,6 +19,7 @@ import {
 } from "@/components/ui/dropdown-menu";
 
 import { Shield, LogOut, LayoutDashboard, Globe, Check } from "lucide-react";
+import { ModeToggle } from "./mode-toggle";
 
 const LANGUAGES = [
   { code: "en", name: "English", nativeName: "English" },
@@ -234,6 +235,8 @@ export default function Navbar() {
               ))}
             </DropdownMenuContent>
           </DropdownMenu>
+
+          <ModeToggle />
 
           {signedIn ? (
             <>

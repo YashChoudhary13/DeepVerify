@@ -86,7 +86,7 @@ export default function LoggedInHome() {
             <div className="max-w-7xl mx-auto grid grid-cols-1 lg:grid-cols-3 gap-6 items-start">
               {/* Center column: wide Upload area (spans 2 cols on large screens) */}
               <div className="lg:col-span-2">
-                <div className="rounded-xl shadow-sm border border-gray-100 bg-white p-6">
+                <div className="rounded-xl shadow-sm border border-border bg-card p-6">
                   <h2 className="text-2xl font-semibold mb-4">{t("loggedIn.uploadAnalyze")}</h2>
                   <p className="text-sm text-muted-foreground mb-6">
                     {t("loggedIn.uploadDescription")}
@@ -117,13 +117,13 @@ export default function LoggedInHome() {
 
               {/* Right column: extras / quick actions / recent analyses */}
               <aside className="lg:col-span-1">
-                <div className="rounded-xl border border-gray-100 bg-white p-6 shadow-sm sticky top-24">
+                <div className="rounded-xl border border-border bg-card p-6 shadow-sm sticky top-24">
                   <h3 className="text-lg font-semibold mb-3">{t("loggedIn.quickActions")}</h3>
 
                   <div className="flex flex-col gap-3">
                     <button
                       onClick={() => document.querySelector<HTMLInputElement>("input[type=file]")?.click()}
-                      className="w-full text-left px-4 py-3 bg-neutral-50 hover:bg-neutral-100 rounded-lg transition"
+                      className="w-full text-left px-4 py-3 bg-muted hover:bg-muted/80 rounded-lg transition"
                       aria-label="Upload image"
                     >
                       {t("loggedIn.uploadImage")}
@@ -152,7 +152,7 @@ export default function LoggedInHome() {
                     {/* Placeholder list — replace with real data */}
                     <ul className="space-y-3">
                       <li className="flex items-center gap-3">
-                        <div className="w-12 h-12 bg-slate-100 rounded overflow-hidden flex-shrink-0" aria-hidden>
+                        <div className="w-12 h-12 bg-muted rounded overflow-hidden flex-shrink-0" aria-hidden>
                           {/* thumbnail placeholder */}
                         </div>
                         <div className="flex-1">
@@ -187,7 +187,7 @@ export default function LoggedInHome() {
                 </div>
 
                 {/* Small trust panel */}
-                <div className="mt-4 rounded-xl border border-gray-100 bg-white p-4 shadow-sm">
+                <div className="mt-4 rounded-xl border border-border bg-card p-4 shadow-sm">
                   <div className="flex items-center gap-3">
                     <Shield className="h-5 w-5 text-primary" />
                     <div>
@@ -204,7 +204,7 @@ export default function LoggedInHome() {
         {/* small footer CTA */}
         <section className="py-12">
           <div className="container mx-auto px-4 max-w-4xl">
-            <div className="rounded-xl border bg-white p-6 text-center">
+            <div className="rounded-xl border border-border bg-card p-6 text-center">
               <h3 className="text-xl font-semibold mb-2">{t("loggedIn.needHelp")}</h3>
               <p className="text-sm text-muted-foreground mb-4">{t("loggedIn.contactSupport")}</p>
               <div className="flex items-center justify-center gap-3">

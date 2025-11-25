@@ -131,9 +131,8 @@ export default function UploadCard() {
           onDrop={onDrop}
           onDragOver={onDragOver}
           onDragLeave={onDragLeave}
-          className={`border-2 border-dashed rounded-lg p-12 text-center transition-colors ${
-            isDragging ? "border-primary bg-primary/5" : "border-border hover:border-primary/50"
-          }`}
+          className={`border-2 border-dashed rounded-lg p-12 text-center transition-colors ${isDragging ? "border-primary bg-primary/5" : "border-border hover:border-primary/50"
+            }`}
           data-testid="upload-dropzone"
         >
           <div className="flex flex-col items-center gap-4">

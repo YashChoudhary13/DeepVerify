@@ -73,7 +73,7 @@ export default function Support() {
 
         <section className="py-8">
           <div className="container mx-auto px-4 max-w-6xl grid grid-cols-1 lg:grid-cols-3 gap-6">
-            <div className="lg:col-span-2 rounded-xl border bg-white p-6 shadow-sm">
+            <div className="lg:col-span-2 rounded-xl border border-border bg-card p-6 shadow-sm">
               <h2 className="text-xl font-semibold mb-4">{t("support.contactSupport")}</h2>
 
               <form onSubmit={submitTicket} className="space-y-4">
@@ -82,7 +82,7 @@ export default function Support() {
                   <input
                     value={name}
                     onChange={(e) => setName(e.target.value)}
-                    className="w-full border rounded px-3 py-2"
+                    className="w-full border border-input bg-background rounded px-3 py-2"
                     placeholder={t("support.namePlaceholder")}
                   />
                 </div>
@@ -92,7 +92,7 @@ export default function Support() {
                   <input
                     value={email}
                     onChange={(e) => setEmail(e.target.value)}
-                    className="w-full border rounded px-3 py-2"
+                    className="w-full border border-input bg-background rounded px-3 py-2"
                     placeholder={t("support.emailPlaceholder")}
                     required
                     type="email"
@@ -104,7 +104,7 @@ export default function Support() {
                   <textarea
                     value={message}
                     onChange={(e) => setMessage(e.target.value)}
-                    className="w-full border rounded px-3 py-2 h-32"
+                    className="w-full border border-input bg-background rounded px-3 py-2 h-32"
                     placeholder={t("support.messagePlaceholder")}
                     required
                   />
@@ -125,7 +125,7 @@ export default function Support() {
               </form>
             </div>
 
-            <aside className="rounded-xl border bg-white p-6 shadow-sm">
+            <aside className="rounded-xl border border-border bg-card p-6 shadow-sm">
               <h3 className="text-lg font-semibold mb-3">{t("support.quickResources")}</h3>
 
               <ul className="space-y-3 text-sm text-muted-foreground">
