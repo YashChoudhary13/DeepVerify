@@ -72,10 +72,10 @@ export default function Home() {
 
       <main className="pt-16">
         {/* HERO */}
-        <section className="relative py-20 md:py-32 overflow-hidden">
-          <div className="absolute inset-0 bg-gradient-to-br from-primary/5 via-background to-background" />
-          <div className="container mx-auto px-4 relative">
-            <div className="max-w-4xl mx-auto text-center space-y-8">
+          <section className="relative min-h-screen flex items-center py-20 md:py-32 overflow-hidden">
+           <div className="absolute inset-0 bg-gradient-to-br from-primary/5 via-background to-background" />
+            <div className="container mx-auto px-4 relative">
+             <div className="max-w-4xl mx-auto text-center space-y-8">
               <div className="space-y-4">
                 <h1 className="text-4xl md:text-6xl font-bold tracking-tight">
                   {t("home.title")}
