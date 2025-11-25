@@ -44,13 +44,9 @@ def create_access_token(data: dict, expires_delta: Optional[timedelta] = None):
     return encoded_jwt
 
 
-def get_db():
-    """Database dependency"""
-    db = SessionLocal()
-    try:
-        yield db
-    finally:
-        db.close()
+from .database import SessionLocal
+from . import models
+from .dependencies import get_db
 
 
 def get_user_by_username(db: Session, username: str):

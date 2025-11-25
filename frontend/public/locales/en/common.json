@@ -6,8 +6,20 @@
     "support": "Support",
     "signIn": "Sign In",
     "signUp": "Sign Up",
-    "signOut": "Sign Out"
+    "signOut": "Sign Out",
+    "settings": "Profile Settings"
   },
+  "profile_settings": "Profile Settings",
+  "membership_status": "Membership Status",
+  "detections_used": "Detections Used",
+  "personal_information": "Personal Information",
+  "update_details": "Update your personal details here.",
+  "full_name": "Full Name",
+  "save_changes": "Save Changes",
+  "current_plan": "Current plan",
+  "total_analyses": "Total analyses performed",
+  "profile_updated": "Profile updated successfully",
+  "failed_update": "Failed to update profile",
   "home": {
     "title": "Multi-Model Deepfake Detection",
     "subtitle": "Professional authenticity analysis using 5 advanced AI models. Get detailed reports with heatmap visualizations and confidence scores.",
@@ -64,6 +76,7 @@
     "maxFileSize": "Max file size is 10MB",
     "uploadSucceeded": "Upload succeeded but server response was unexpected.",
     "uploadFailed": "Upload failed",
+    "usageLimitExceeded": "Usage limit exceeded. Please upgrade to Pro for unlimited uploads.",
     "notSignedIn": "You are not signed in. You can still upload, but some features may require an account.",
     "logIn": "Log in",
     "goToLogin": "Go to Login →",
@@ -227,4 +240,3 @@
     "officeHoursTime": "Mon–Fri, 09:00–18:00 UTC"
   }
 }
-

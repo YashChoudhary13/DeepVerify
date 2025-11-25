@@ -6,8 +6,20 @@
     "support": "Soporte",
     "signIn": "Iniciar Sesión",
     "signUp": "Registrarse",
-    "signOut": "Cerrar Sesión"
+    "signOut": "Cerrar sesión",
+    "settings": "Configuración de perfil"
   },
+  "profile_settings": "Configuración de perfil",
+  "membership_status": "Estado de membresía",
+  "detections_used": "Detecciones utilizadas",
+  "personal_information": "Información personal",
+  "update_details": "Actualice sus datos personales aquí.",
+  "full_name": "Nombre completo",
+  "save_changes": "Guardar cambios",
+  "current_plan": "Plan actual",
+  "total_analyses": "Análisis totales realizados",
+  "profile_updated": "Perfil actualizado exitosamente",
+  "failed_update": "Error al actualizar el perfil",
   "home": {
     "title": "Detección de Deepfake Multi-Modelo",
     "subtitle": "Análisis profesional de autenticidad utilizando 5 modelos avanzados de IA. Obtenga informes detallados con visualizaciones de mapas de calor y puntuaciones de confianza.",

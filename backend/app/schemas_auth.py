@@ -14,6 +14,9 @@ class UserCreate(UserBase):
 
 class UserResponse(UserBase):
     id: int
+    full_name: Optional[str] = None
+    membership_status: str
+    detections_used: int
     is_active: bool
     created_at: datetime
 
@@ -30,4 +33,10 @@ class Token(BaseModel):
 class LoginRequest(BaseModel):
     username: str
     password: str
+
+
+class UserUpdate(BaseModel):
+    full_name: Optional[str] = None
+    email: Optional[EmailStr] = None
+
 

@@ -6,8 +6,20 @@
     "support": "支持",
     "signIn": "登录",
     "signUp": "注册",
-    "signOut": "退出"
+    "signOut": "退出",
+    "settings": "个人资料设置"
   },
+  "profile_settings": "个人资料设置",
+  "membership_status": "会员状态",
+  "detections_used": "已使用的检测",
+  "personal_information": "个人信息",
+  "update_details": "在此更新您的个人详细信息。",
+  "full_name": "全名",
+  "save_changes": "保存更改",
+  "current_plan": "当前计划",
+  "total_analyses": "执行的总分析",
+  "profile_updated": "个人资料更新成功",
+  "failed_update": "更新个人资料失败",
   "home": {
     "title": "多模型深度伪造检测",
     "subtitle": "使用5个先进AI模型进行专业真实性分析。获取包含热图可视化和置信度分数的详细报告。",

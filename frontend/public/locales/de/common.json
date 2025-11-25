@@ -6,8 +6,20 @@
     "support": "Support",
     "signIn": "Anmelden",
     "signUp": "Registrieren",
-    "signOut": "Abmelden"
+    "signOut": "Abmelden",
+    "settings": "Profileinstellungen"
   },
+  "profile_settings": "Profileinstellungen",
+  "membership_status": "Mitgliedschaftsstatus",
+  "detections_used": "Verwendete Erkennungen",
+  "personal_information": "Persönliche Informationen",
+  "update_details": "Aktualisieren Sie hier Ihre persönlichen Daten.",
+  "full_name": "Vollständiger Name",
+  "save_changes": "Änderungen speichern",
+  "current_plan": "Aktueller Plan",
+  "total_analyses": "Gesamtzahl der durchgeführten Analysen",
+  "profile_updated": "Profil erfolgreich aktualisiert",
+  "failed_update": "Profilaktualisierung fehlgeschlagen",
   "home": {
     "title": "Multi-Modell Deepfake-Erkennung",
     "subtitle": "Professionelle Authentizitätsanalyse mit 5 fortschrittlichen KI-Modellen. Erhalten Sie detaillierte Berichte mit Heatmap-Visualisierungen und Konfidenzscores.",

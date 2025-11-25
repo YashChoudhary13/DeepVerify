@@ -116,6 +116,7 @@ export default function Membership() {
                   <div className="flex items-baseline justify-between">
                     <div>
                       <h3 className="text-2xl font-semibold">{t("membership.proMonthly")}</h3>
+                      <p className="text-sm text-muted-foreground mt-1">10 uploads limit for Free users</p>
                       <p className="text-sm text-muted-foreground mt-1">{t("membership.billedMonthly")}</p>
                     </div>
                     <div className="text-right">
@@ -126,7 +127,7 @@ export default function Membership() {
 
                   <ul className="mt-6 space-y-3 text-sm">
                     <li>{t("membership.features.priority")}</li>
-                    <li>{t("membership.features.uploads25")}</li>
+                    <li>Unlimited uploads</li>
                     <li>{t("membership.features.pdfReports")}</li>
                     <li>{t("membership.features.emailSupport")}</li>
                   </ul>
@@ -158,7 +159,7 @@ export default function Membership() {
 
                   <ul className="mt-6 space-y-3 text-sm">
                     <li>{t("membership.features.priority")}</li>
-                    <li>{t("membership.features.uploads300")}</li>
+                    <li>Unlimited uploads</li>
                     <li>{t("membership.features.pdfReports")}</li>
                     <li>{t("membership.features.prioritySupport")}</li>
                   </ul>

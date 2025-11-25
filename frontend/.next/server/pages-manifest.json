@@ -2,6 +2,12 @@
   "/_app": "pages/_app.js",
   "/_error": "pages/_error.js",
   "/_document": "pages/_document.js",
+  "/indexloggedin": "pages/indexloggedin.js",
+  "/[id]": "pages/[id].js",
   "/": "pages/index.js",
-  "/[id]": "pages/[id].js"
+  "/login": "pages/login.js",
+  "/register": "pages/register.js",
+  "/settings": "pages/settings.js",
+  "/membership": "pages/membership.js",
+  "/dashboard": "pages/dashboard.js"
 }

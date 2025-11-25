@@ -34,7 +34,7 @@ from .auth import (
     get_user_by_email,
     ACCESS_TOKEN_EXPIRE_MINUTES,
 )
-from .schemas_auth import UserCreate, UserResponse, Token, LoginRequest
+from .schemas_auth import UserCreate, UserResponse, Token, LoginRequest, UserUpdate
 
 from .support import router as support_router
 from .payments import router as payments_router
@@ -124,6 +124,9 @@ def login(login_data: LoginRequest, db: Session = Depends(get_db)):
             id=user.id,
             username=user.username,
             email=user.email,
+            full_name=user.full_name,
+            membership_status=user.membership_status,
+            detections_used=user.detections_used,
             is_active=user.is_active,
             created_at=user.created_at,
         ),
@@ -133,6 +136,31 @@ def login(login_data: LoginRequest, db: Session = Depends(get_db)):
 @app.get("/api/auth/me", response_model=UserResponse)
 def get_me(current_user: User = Depends(get_current_active_user)):
     return current_user
+
+
+@app.put("/api/auth/me", response_model=UserResponse)
+def update_profile(
+    user_update: UserUpdate,
+    current_user: User = Depends(get_current_active_user),
+    db: Session = Depends(get_db),
+):
+    # Re-fetch user to ensure it's attached to the current session
+    user = db.query(User).filter(User.id == current_user.id).first()
+    if not user:
+        raise HTTPException(status_code=404, detail="User not found")
+
+    if user_update.full_name is not None:
+        user.full_name = user_update.full_name
+    if user_update.email is not None:
+        # Check if email is taken by another user
+        existing = get_user_by_email(db, user_update.email)
+        if existing and existing.id != user.id:
+            raise HTTPException(status_code=400, detail="Email already registered")
+        user.email = user_update.email
+    
+    db.commit()
+    db.refresh(user)
+    return user
 
 
 # =================================================================
@@ -158,12 +186,21 @@ async def upload_image(
         with open(save_path, "wb") as f:
             f.write(content)
 
+        # Check usage limits
+        if current_user.membership_status != "Pro":
+            if current_user.detections_used >= 10:
+                raise HTTPException(status_code=403, detail="Usage limit exceeded")
+
         job = crud.create_job(
             img_id=image_id,
             filename=save_path,
             db=db,
             user_id=current_user.id,
         )
+
+        # Increment usage count
+        current_user.detections_used += 1
+        db.commit()
 
         # Prefer Celery if available
         if celery:
@@ -200,6 +237,8 @@ async def upload_image(
         print(f"[main] Job {job.id} created, analysis task scheduled in thread")
         return {"jobId": job.id}
 
+    except HTTPException:
+        raise
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Upload error: {str(e)}")
 

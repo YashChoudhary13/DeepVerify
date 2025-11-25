@@ -6,8 +6,20 @@
     "support": "サポート",
     "signIn": "サインイン",
     "signUp": "サインアップ",
-    "signOut": "サインアウト"
+    "signOut": "サインアウト",
+    "settings": "プロフィール設定"
   },
+  "profile_settings": "プロフィール設定",
+  "membership_status": "会員ステータス",
+  "detections_used": "使用された検出",
+  "personal_information": "個人情報",
+  "update_details": "ここで個人情報を更新してください。",
+  "full_name": "氏名",
+  "save_changes": "変更を保存",
+  "current_plan": "現在のプラン",
+  "total_analyses": "実行された分析の合計",
+  "profile_updated": "プロフィールが正常に更新されました",
+  "failed_update": "プロフィールの更新に失敗しました",
   "home": {
     "title": "マルチモデルディープフェイク検出",
     "subtitle": "5つの高度なAIモデルを使用したプロフェッショナルな真正性分析。ヒートマップの可視化と信頼度スコアを含む詳細レポートを取得します。",

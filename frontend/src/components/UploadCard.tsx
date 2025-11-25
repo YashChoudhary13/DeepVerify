@@ -112,6 +112,12 @@ export default function UploadCard() {
         setTimeout(() => {
           router.push("/login");
         }, 800);
+      } else if (e?.response?.status === 403 || /usage limit/i.test(String(errorMsg))) {
+        // Handle usage limit exceeded
+        setError("Usage limit exceeded. Redirecting to membership...");
+        setTimeout(() => {
+          router.push("/membership");
+        }, 1500);
       }
     } finally {
       setLoading(false);

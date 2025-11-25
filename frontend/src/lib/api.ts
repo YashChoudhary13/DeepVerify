@@ -74,6 +74,9 @@ export interface User {
   id: number;
   username: string;
   email: string;
+  full_name?: string;
+  membership_status?: string;
+  detections_used?: number;
   is_active: boolean;
   created_at: string;
 }
@@ -138,6 +141,24 @@ export async function getCurrentUser(): Promise<User> {
 
   // backend returns { user: {...} } in some setups; accept both shapes
   if (parsed && parsed.user) return parsed.user as User;
+  return parsed as User;
+}
+
+export async function updateUser(data: { full_name?: string; email?: string }): Promise<User> {
+  const resp = await fetch(`${API_BASE}/api/auth/me`, {
+    method: "PUT",
+    headers: {
+      "Content-Type": "application/json",
+      ...getAuthHeaders(),
+    } as HeadersInit,
+    body: JSON.stringify(data),
+  });
+
+  const parsed = await parseJsonSafe(resp);
+  if (!resp.ok) {
+    throw new Error(extractErrorMessage(parsed) || "Failed to update profile");
+  }
+
   return parsed as User;
 }
 

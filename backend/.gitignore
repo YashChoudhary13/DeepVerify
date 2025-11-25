@@ -26,3 +26,5 @@ env/
 # Environment variables
 .env
 .env.local
+manage_users.py
+
