@@ -29,12 +29,6 @@
       "static/chunks/src_components_Navbar_tsx-_25530.js"
     ]
   },
-  "index.tsx -> @/components/Navbar": {
-    "id": "index.tsx -> @/components/Navbar",
-    "files": [
-      "static/chunks/src_components_Navbar_tsx-_25532.js"
-    ]
-  },
   "indexloggedin.tsx -> @/components/Navbar": {
     "id": "indexloggedin.tsx -> @/components/Navbar",
     "files": [
@@ -45,6 +39,12 @@
     "id": "membership.tsx -> @/components/Navbar",
     "files": [
       "static/chunks/src_components_Navbar_tsx-_25531.js"
+    ]
+  },
+  "membership.tsx -> @/lib/api": {
+    "id": "membership.tsx -> @/lib/api",
+    "files": [
+      "static/chunks/src_lib_api_ts.js"
     ]
   }
 }

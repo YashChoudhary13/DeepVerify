@@ -5,7 +5,7 @@ import { serverSideTranslations } from "next-i18next/serverSideTranslations";
 import { useTranslation } from "next-i18next";
 import { Button } from "@/components/ui/button";
 import { Shield, Zap, FileDown } from "lucide-react";
-import { useCallback, useState } from "react";
+import { useCallback, useState, useEffect } from "react";
 
 const Navbar = dynamic(() => import("@/components/Navbar"), { ssr: false });
 
@@ -22,6 +22,15 @@ export async function getServerSideProps({ locale }: { locale: string }) {
 export default function Membership() {
   const { t } = useTranslation("common");
   const [loadingPlan, setLoadingPlan] = useState<string | null>(null);
+  const [user, setUser] = useState<any | null>(null);
+
+  useEffect(() => {
+    import("@/lib/api").then(({ getCurrentUser }) => {
+      getCurrentUser()
+        .then((u) => setUser(u))
+        .catch(() => setUser(null));
+    });
+  }, []);
 
   const startCheckout = useCallback(async (plan: "pro_monthly" | "pro_yearly") => {
     try {
@@ -47,6 +56,8 @@ export default function Membership() {
       setLoadingPlan(null);
     }
   }, []);
+
+  const isPro = user?.membership_status === "Pro";
 
   return (
     <div className="min-h-screen bg-background">
@@ -133,14 +144,20 @@ export default function Membership() {
                   </ul>
 
                   <div className="mt-6">
-                    <Button
-                      variant="outline"
-                      size="lg"
-                      onClick={() => startCheckout("pro_monthly")}
-                      disabled={loadingPlan === "pro_monthly"}
-                    >
-                      {loadingPlan === "pro_monthly" ? t("membership.redirecting") : t("membership.startPro")}
-                    </Button>
+                    {isPro ? (
+                      <Button variant="outline" size="lg" disabled className="w-full bg-green-50 text-green-700 border-green-200">
+                        {t("membership.alreadyPro")}
+                      </Button>
+                    ) : (
+                      <Button
+                        variant="outline"
+                        size="lg"
+                        onClick={() => startCheckout("pro_monthly")}
+                        disabled={loadingPlan === "pro_monthly"}
+                      >
+                        {loadingPlan === "pro_monthly" ? t("membership.redirecting") : t("membership.startPro")}
+                      </Button>
+                    )}
                   </div>
                 </div>
 
@@ -165,14 +182,20 @@ export default function Membership() {
                   </ul>
 
                   <div className="mt-6">
-                    <Button
-                      variant="outline"
-                      size="lg"
-                      onClick={() => startCheckout("pro_yearly")}
-                      disabled={loadingPlan === "pro_yearly"}
-                    >
-                      {loadingPlan === "pro_yearly" ? t("membership.redirecting") : t("membership.startYearly")}
-                    </Button>
+                    {isPro ? (
+                      <Button variant="outline" size="lg" disabled className="w-full bg-green-50 text-green-700 border-green-200">
+                        {t("membership.alreadyPro")}
+                      </Button>
+                    ) : (
+                      <Button
+                        variant="outline"
+                        size="lg"
+                        onClick={() => startCheckout("pro_yearly")}
+                        disabled={loadingPlan === "pro_yearly"}
+                      >
+                        {loadingPlan === "pro_yearly" ? t("membership.redirecting") : t("membership.startYearly")}
+                      </Button>
+                    )}
                   </div>
                 </div>
               </div>

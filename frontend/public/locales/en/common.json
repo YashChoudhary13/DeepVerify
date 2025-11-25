@@ -216,7 +216,8 @@
     "cancelAnytime": "Can I cancel anytime?",
     "cancelAnswer": "Yes — monthly plans can be cancelled from your account page without penalties.",
     "teamPlans": "Do you offer team or enterprise plans?",
-    "teamPlansAnswer": "Yes — contact our sales team via the Support page for a tailored plan."
+    "teamPlansAnswer": "Yes — contact our sales team via the Support page for a tailored plan.",
+    "alreadyPro": "Already a Pro Member"
   },
   "support": {
     "title": "Support & Help Center",

@@ -12,11 +12,6 @@
   ],
   "rootMainFiles": [],
   "pages": {
-    "/": [
-      "static/chunks/webpack.js",
-      "static/chunks/main.js",
-      "static/chunks/pages/index.js"
-    ],
     "/[id]": [
       "static/chunks/webpack.js",
       "static/chunks/main.js",
@@ -42,20 +37,10 @@
       "static/chunks/main.js",
       "static/chunks/pages/indexloggedin.js"
     ],
-    "/login": [
-      "static/chunks/webpack.js",
-      "static/chunks/main.js",
-      "static/chunks/pages/login.js"
-    ],
     "/membership": [
       "static/chunks/webpack.js",
       "static/chunks/main.js",
       "static/chunks/pages/membership.js"
-    ],
-    "/register": [
-      "static/chunks/webpack.js",
-      "static/chunks/main.js",
-      "static/chunks/pages/register.js"
     ],
     "/settings": [
       "static/chunks/webpack.js",
