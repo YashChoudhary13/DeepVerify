@@ -2,7 +2,6 @@ fastapi
 uvicorn
 pydantic
 SQLAlchemy
-psycopg2-binary
 python-multipart
 Pillow
 celery
@@ -11,11 +10,10 @@ python-dotenv
 python-jose[cryptography]
 passlib[bcrypt]
 email-validator
-python-jose 
 requests
-torch 
-torchvision 
-pillow 
-numpy 
+torch
+torchvision
+numpy
 matplotlib
 tensorflow
+bcrypt
