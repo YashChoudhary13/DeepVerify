@@ -289,18 +289,19 @@ def transform_job_for_frontend(job):
                 else result.confidence_real
             )
 
+            BASE_URL = os.getenv("BASE_URL", "http://localhost:8000")
             heatmap_url = None
             if result.heatmap_path and result.heatmap_path != "N/A":
                 # heatmap_path might be just filename or full path
                 fname = os.path.basename(result.heatmap_path) if os.path.sep in result.heatmap_path else result.heatmap_path
                 heatmap_file_path = os.path.join(HEATMAP_DIR, fname)
                 if os.path.exists(heatmap_file_path):
-                    heatmap_url = f"http://localhost:8000/api/heatmaps/{fname}"
+                    heatmap_url = f"{BASE_URL}/api/heatmaps/{fname}"
 
             img_url = None
             if job.file_path and os.path.exists(job.file_path):
                 fname = os.path.basename(job.file_path)
-                img_url = f"http://localhost:8000/api/uploads/{fname}"
+                img_url = f"{BASE_URL}/api/uploads/{fname}"
 
             models.append(
                 {
@@ -320,7 +321,7 @@ def transform_job_for_frontend(job):
     image = None
     if job.file_path and os.path.exists(job.file_path):
         fname = os.path.basename(job.file_path)
-        image = {"thumbnail_url": f"http://localhost:8000/api/uploads/{fname}"}
+        image = {"thumbnail_url": f"{BASE_URL}/api/uploads/{fname}"}
 
     return {
         "job_id": job.id,

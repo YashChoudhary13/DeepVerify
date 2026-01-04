@@ -17,3 +17,5 @@ numpy
 matplotlib
 tensorflow
 bcrypt
+stripe
+psycopg2-binary
