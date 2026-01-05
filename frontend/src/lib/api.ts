@@ -186,7 +186,7 @@ export async function uploadImage(file: File): Promise<{ jobId: number }> {
   const timeoutId = setTimeout(() => controller.abort(), 60000); // 60s
 
   try {
-    const resp = await fetch(`${API_BASE}/upload`, {
+    const resp = await fetch(`${API_BASE}/api/upload`, {
       method: "POST",
       headers: getAuthHeaders(),
       body: form,
@@ -220,7 +220,7 @@ export async function uploadImage(file: File): Promise<{ jobId: number }> {
 ---------------------------------------------*/
 
 export async function getJob(jobId: number) {
-  const resp = await fetch(`${API_BASE}/jobs/${jobId}`, {
+  const resp = await fetch(`${API_BASE}/api/jobs/${jobId}`, {
     headers: getAuthHeaders(),
   });
 
@@ -240,7 +240,7 @@ export async function getJob(jobId: number) {
 ---------------------------------------------*/
 
 export async function getDashboard() {
-  const resp = await fetch(`${API_BASE}/dashboard`, {
+  const resp = await fetch(`${API_BASE}/api/dashboard`, {
     headers: getAuthHeaders(),
   });
 

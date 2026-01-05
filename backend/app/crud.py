@@ -36,17 +36,24 @@ def get_job(job_id: int, db: Session):
 
 
 def get_recent_jobs(db: Session, user_id: int = None):
-    """Get recent jobs, optionally filtered by user"""
     from sqlalchemy.orm import joinedload
-    query = db.query(models.Job).options(joinedload(models.Job.results))  # Eagerly load results
+
+    query = (
+        db.query(models.Job)
+        .options(joinedload(models.Job.results))
+        .filter(models.Job.is_demo.is_(False))
+    )
+
     if user_id:
         query = query.filter(models.Job.user_id == user_id)
+
     return (
         query
         .order_by(models.Job.created_at.desc())
         .limit(20)
         .all()
     )
+
 
 
 def add_model_result(job_id, model_name, confidence_real,

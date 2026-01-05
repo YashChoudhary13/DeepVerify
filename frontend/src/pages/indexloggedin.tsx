@@ -7,6 +7,10 @@ import UploadCard from "@/components/UploadCard";
 import FeatureCard from "@/components/FeatureCard";
 import { Button } from "@/components/ui/button";
 import { Layers, Flame, Zap, Shield, Lock, FileDown } from "lucide-react";
+import useSWR from "swr";
+import { fetcher, getAuthHeaders } from "@/lib/api";
+import type { DashboardJob } from "@/types";
+import { useRouter } from "next/router";
 
 const Navbar = dynamic(() => import("@/components/Navbar"), { ssr: false });
 
@@ -19,7 +23,44 @@ export async function getServerSideProps({ locale }: { locale: string }) {
 }
 
 export default function LoggedInHome() {
+  const router = useRouter();
+
+  const handleSampleReport = async () => {
+    try {
+      const API_BASE =
+        process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
+
+      const res = await fetch(`${API_BASE}/api/jobs/demo`, {
+        method: "POST",
+         headers: {
+          "Content-Type": "application/json",
+          ...getAuthHeaders(), // ← THIS WAS MISSING
+        },
+        credentials: "include",
+      });
+
+      if (!res.ok) {
+        throw new Error("Failed to create demo job");
+      }
+
+      const data = await res.json();
+
+      if (!data.job_id) {
+        throw new Error("No job_id returned from demo job");
+      }
+
+      router.push(`/${data.job_id}`);
+    } catch (err) {
+      console.error(err);
+      alert("Failed to load sample report");
+    }
+  };
+
   const { t } = useTranslation("common");
+  const { data: jobs } = useSWR<DashboardJob[]>(
+    "/api/dashboard",
+    fetcher
+  );
   const features = [
     {
       icon: Layers,
@@ -106,13 +147,6 @@ export default function LoggedInHome() {
                     </Button>
                   </div>
                 </div>
-
-                {/* Feature grid (smaller) */}
-                <div className="mt-8 grid md:grid-cols-2 lg:grid-cols-3 gap-4">
-                  {features.map((f, i) => (
-                    <FeatureCard key={i} icon={f.icon} title={f.title} desc={f.description} />
-                  ))}
-                </div>
               </div>
 
               {/* Right column: extras / quick actions / recent analyses */}
@@ -138,7 +172,7 @@ export default function LoggedInHome() {
                     </button>
 
                     <button
-                      onClick={() => (window.location.href = "/result")}
+                      onClick={handleSampleReport}
                       className="w-full text-left px-4 py-3 border rounded-lg hover:shadow-sm transition"
                       aria-label="Sample report"
                     >
@@ -151,31 +185,39 @@ export default function LoggedInHome() {
 
                     {/* Placeholder list — replace with real data */}
                     <ul className="space-y-3">
-                      <li className="flex items-center gap-3">
-                        <div className="w-12 h-12 bg-muted rounded overflow-hidden flex-shrink-0" aria-hidden>
-                          {/* thumbnail placeholder */}
-                        </div>
-                        <div className="flex-1">
-                          <div className="text-sm font-medium">sample_image_01.png</div>
-                          <div className="text-xs text-muted-foreground">REAL • 98% • 2m ago</div>
-                        </div>
-                      </li>
+                      {jobs?.slice(0, 3).map((job: any) => (
+                        <li
+                          key={job.id}
+                          className="flex items-center gap-3 cursor-pointer"
+                          onClick={() => (window.location.href = `/${job.id}`)}
+                        >
+                          <div className="w-12 h-12 rounded overflow-hidden flex-shrink-0 bg-muted">
+                            {job.image?.thumbnail_url && (
+                              <img
+                                src={`${process.env.NEXT_PUBLIC_API_URL}${job.image.thumbnail_url}`}
+                                className="w-full h-full object-cover"
+                                alt="analysis thumbnail"
+                              />
+                            )}
+                          </div>
 
-                      <li className="flex items-center gap-3">
-                        <div className="w-12 h-12 bg-slate-100 rounded overflow-hidden flex-shrink-0" aria-hidden />
-                        <div className="flex-1">
-                          <div className="text-sm font-medium">video_frame_23.jpg</div>
-                          <div className="text-xs text-muted-foreground">UNCERTAIN • 63% • 1d ago</div>
-                        </div>
-                      </li>
+                          <div className="flex-1">
+                            <div className="text-sm font-medium">
+                              Analysis #{job.analysis_number ?? job.id}
+                            </div>
+                            <div className="text-xs text-muted-foreground">
+                              {job.consensus?.decision ?? "PENDING"} •{" "}
+                              {Math.round((job.consensus?.score ?? 0) * 100)}%
+                            </div>
+                          </div>
+                        </li>
+                      ))}
 
-                      <li className="flex items-center gap-3">
-                        <div className="w-12 h-12 bg-slate-100 rounded overflow-hidden flex-shrink-0" aria-hidden />
-                        <div className="flex-1">
-                          <div className="text-sm font-medium">portrait_test.png</div>
-                          <div className="text-xs text-muted-foreground">FAKE • 88% • 3d ago</div>
-                        </div>
-                      </li>
+                      {!jobs?.length && (
+                        <li className="text-sm text-muted-foreground">
+                          No analyses yet
+                        </li>
+                      )}
                     </ul>
 
                     <div className="mt-4">
@@ -198,12 +240,26 @@ export default function LoggedInHome() {
                 </div>
               </aside>
             </div>
+
+            {/* Features — SAME WIDTH */}
+            <div className="mt-10">
+              <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-4">
+                {features.map((f, i) => (
+                  <FeatureCard
+                    key={i}
+                    icon={f.icon}
+                    title={f.title}
+                    desc={f.description}
+                  />
+                ))}
+               </div>
+            </div>
           </div>
         </section>
 
         {/* small footer CTA */}
         <section className="py-12">
-          <div className="container mx-auto px-4 max-w-4xl">
+          <div className="container mx-auto px-4 max-w-7xl">
             <div className="rounded-xl border border-border bg-card p-6 text-center">
               <h3 className="text-xl font-semibold mb-2">{t("loggedIn.needHelp")}</h3>
               <p className="text-sm text-muted-foreground mb-4">{t("loggedIn.contactSupport")}</p>

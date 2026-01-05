@@ -33,7 +33,7 @@ export default function Support() {
 
     try {
       // Replace this URL with your backend support endpoint if you have one
-      const res = await fetch(`${API}/support`, {
+      const res = await fetch(`${API}/api/support`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ name, email, message }),

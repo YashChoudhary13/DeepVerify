@@ -16,6 +16,7 @@ from datetime import timedelta
 import os
 import uuid
 from dotenv import load_dotenv
+import shutil
 
 load_dotenv()
 
@@ -168,7 +169,6 @@ def update_profile(
 # =================================================================
 
 @app.post("/api/upload")
-@app.post("/upload")
 async def upload_image(
     file: UploadFile = File(...),
     background_tasks: BackgroundTasks = BackgroundTasks(),
@@ -298,6 +298,7 @@ def transform_job_for_frontend(job):
                 if os.path.exists(heatmap_file_path):
                     heatmap_url = f"{BASE_URL}/api/heatmaps/{fname}"
 
+
             img_url = None
             if job.file_path and os.path.exists(job.file_path):
                 fname = os.path.basename(job.file_path)
@@ -321,7 +322,7 @@ def transform_job_for_frontend(job):
     image = None
     if job.file_path and os.path.exists(job.file_path):
         fname = os.path.basename(job.file_path)
-        image = {"thumbnail_url": f"{BASE_URL}/api/uploads/{fname}"}
+        image = {"thumbnail_url": f"/api/uploads/{fname}"}
 
     return {
         "job_id": job.id,
@@ -341,7 +342,6 @@ def transform_job_for_frontend(job):
 # =================================================================
 
 @app.get("/api/jobs/{job_id}")
-@app.get("/jobs/{job_id}")
 def get_job(job_id: int, db: Session = Depends(get_db)):
     job = crud.get_job(job_id, db)
     if not job:
@@ -354,7 +354,6 @@ def get_job(job_id: int, db: Session = Depends(get_db)):
 # =================================================================
 
 @app.get("/api/dashboard")
-@app.get("/dashboard")
 def dashboard(current_user: User = Depends(get_current_active_user), db: Session = Depends(get_db)):
     jobs = crud.get_recent_jobs(db, user_id=current_user.id)
     
@@ -506,6 +505,54 @@ def debug_job(job_id: int, db: Session = Depends(get_db)):
         "created_at": job.created_at.isoformat() if job.created_at else None,
     }
 
+@app.post("/api/jobs/demo")
+def create_demo_job(
+    current_user: User = Depends(get_current_active_user),
+    db: Session = Depends(get_db),
+):
+    """
+    Create a demo analysis job using a predefined image.
+    Demo jobs:
+    - do not count toward usage
+    - do not appear in dashboard
+    """
 
-app.include_router(support_router)
-app.include_router(payments_router)
+    SAMPLE_IMAGE = "sample-face.jpg"
+    sample_src = os.path.join(os.path.dirname(__file__), "sample_assets", SAMPLE_IMAGE)
+
+    if not os.path.exists(sample_src):
+        raise HTTPException(status_code=500, detail="Sample image missing")
+
+    # Copy image into uploads
+    image_id = uuid.uuid4().hex
+    dest_path = os.path.join(UPLOAD_DIR, f"{image_id}.jpg")
+    shutil.copy(sample_src, dest_path)
+
+    # Create job EXACTLY like normal upload
+    job = crud.create_job(
+        img_id=image_id,
+        filename=dest_path,
+        db=db,
+        user_id=current_user.id,
+    )
+
+    # IMPORTANT: mark job as demo (dynamic attribute)
+    setattr(job, "is_demo", True)
+    db.commit()
+
+    # Run analysis (same as upload)
+    if celery:
+        run_analysis.delay(job.id, dest_path)
+    else:
+        threading.Thread(
+            target=run_analysis_sync,
+            args=(job.id, dest_path),
+            daemon=False,
+        ).start()
+
+    return {"job_id": job.id}
+
+
+
+app.include_router(support_router, prefix="/api")
+app.include_router(payments_router, prefix="/api")

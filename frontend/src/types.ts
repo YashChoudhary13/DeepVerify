@@ -29,8 +29,10 @@ export interface DashboardJob {
   job_id: string;
   analysis_number?: number;
   display_name?: string;
-  thumbnail_url?: string;
   created_at: string;
+  image?: {
+    thumbnail_url?: string;
+  };
   consensus?: {
     score: number;
     decision: string;

@@ -5,7 +5,7 @@ import { useTranslation } from "next-i18next";
 import ConsensusCard from "../../src/components/ConsensusCard";
 import ModelResultCard from "../../src/components/ModelResultCard";
 import useSWR from "swr";
-import { fetcher, getAuthHeaders } from "../../src/lib/api";
+import { fetcher, getAuthHeaders } from "@/lib/api";
 import { useRouter } from "next/router";
 import { Card } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -99,27 +99,28 @@ export default function ResultPage() {
     doc.text(`Job ID: ${String(job.job_id)}`, 14, 32);
     doc.text(`Date: ${new Date(job.created_at).toLocaleString()}`, 14, 38);
 
-    // Image
-    if (job.image?.thumbnail_url) {
-      try {
-        const imgData = await new Promise<string>((resolve, reject) => {
-          const img = new Image();
-          img.crossOrigin = "Anonymous";
-          img.onload = () => {
-            const canvas = document.createElement("canvas");
-            canvas.width = img.width;
-            canvas.height = img.height;
-            const ctx = canvas.getContext("2d");
-            if (ctx) {
-              ctx.drawImage(img, 0, 0);
-              resolve(canvas.toDataURL("image/jpeg"));
-            } else {
-              reject(new Error("Canvas context failed"));
-            }
-          };
-          img.onerror = reject;
-          img.src = job.image.thumbnail_url;
-        });
+// Image
+if (job.image?.thumbnail_url) {
+  try {
+    const imgData = await new Promise<string>((resolve, reject) => {
+      const img = new Image();
+      img.crossOrigin = "Anonymous";
+      img.onload = () => {
+        const canvas = document.createElement("canvas");
+        canvas.width = img.width;
+        canvas.height = img.height;
+        const ctx = canvas.getContext("2d");
+        if (ctx) {
+          ctx.drawImage(img, 0, 0);
+          resolve(canvas.toDataURL("image/jpeg"));
+        } else {
+          reject(new Error("Canvas context failed"));
+        }
+      };
+      img.onerror = reject;
+      img.src = `${process.env.NEXT_PUBLIC_API_URL}${job.image.thumbnail_url}`;
+    });
+
 
         // Add image (x, y, w, h) - adjust aspect ratio if needed, here fixed size for simplicity
         doc.addImage(imgData, "JPEG", 14, 45, 50, 50);
@@ -222,8 +223,13 @@ export default function ResultPage() {
             {/* Consensus Card */}
             <ConsensusCard
               consensus={job.consensus}
-              imageUrl={job.image?.thumbnail_url}
+              imageUrl={
+                job.image?.thumbnail_url
+                  ? `${process.env.NEXT_PUBLIC_API_URL}${job.image.thumbnail_url}`
+                  : undefined
+              }
             />
+
 
             {/* Per-model breakdown */}
             <section>
@@ -244,10 +250,15 @@ export default function ResultPage() {
             {/* Image */}
             <Card className="p-3">
               <img
-                src={job.image?.thumbnail_url}
+                src={
+                  job.image?.thumbnail_url
+                    ? `${process.env.NEXT_PUBLIC_API_URL}${job.image.thumbnail_url}`
+                    : undefined
+                }
                 alt={t("result.analyzedImage")}
                 className="rounded-md w-full"
               />
+
             </Card>
 
             {/* Buttons */}

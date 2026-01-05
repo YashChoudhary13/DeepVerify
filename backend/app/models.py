@@ -33,6 +33,7 @@ class Job(Base):
 
     owner = relationship("User", back_populates="jobs")
     results = relationship("ModelResult", back_populates="job")
+    is_demo = Column(Boolean, default=False)
 
 
 class ModelResult(Base):
