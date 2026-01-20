@@ -48,3 +48,23 @@ class ModelResult(Base):
     heatmap_path = Column(String)
 
     job = relationship("Job", back_populates="results")
+
+
+class Contribution(Base):
+    """
+    Community-contributed training data.
+    Users upload images and label them as Real or Fake to help improve the model.
+    """
+    __tablename__ = "contributions"
+
+    id = Column(Integer, primary_key=True, index=True)
+    user_id = Column(Integer, ForeignKey("users.id"), nullable=False)
+    image_path = Column(String, nullable=False)
+    label = Column(String, nullable=False)  # "real" or "fake"
+    source = Column(String, nullable=False)  # "camera", "download", "ai_tool", "other"
+    ai_tool_name = Column(String, nullable=True)  # e.g., "Midjourney", "DALL-E"
+    description = Column(String, nullable=True)  # Optional note from user
+    verified = Column(Boolean, default=False)  # Admin review status
+    created_at = Column(DateTime, default=datetime.utcnow)
+
+    contributor = relationship("User", backref="contributions")

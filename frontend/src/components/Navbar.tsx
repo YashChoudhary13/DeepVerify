@@ -18,7 +18,7 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 
-import { Shield, LogOut, LayoutDashboard, Globe, Check, User as UserIcon, Settings } from "lucide-react";
+import { Shield, LogOut, LayoutDashboard, Globe, Check, User as UserIcon, Settings, Sparkles } from "lucide-react";
 import { ModeToggle } from "./mode-toggle";
 
 const LANGUAGES = [
@@ -251,6 +251,13 @@ export default function Navbar() {
 
               <Link href="/support">
                 <span className="hover:text-indigo-600 cursor-pointer">{t("navbar.support")}</span>
+              </Link>
+
+              <Link href="/contribute">
+                <Button variant="outline" size="sm" className="gap-2 border-primary/50 text-primary hover:bg-primary/10">
+                  <Sparkles className="h-4 w-4" />
+                  <span className="hidden md:inline">Help Improve</span>
+                </Button>
               </Link>
 
               <DropdownMenu>
