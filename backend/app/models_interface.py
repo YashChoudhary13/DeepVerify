@@ -58,6 +58,13 @@ except Exception:
     tf = None
     TF_AVAILABLE = False
 
+# Transformers import
+try:
+    from transformers import pipeline
+    TRANSFORMERS_AVAILABLE = True
+except ImportError:
+    TRANSFORMERS_AVAILABLE = False
+
 # Paths (robust)
 BASE_DIR = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))  # backend root
 PROJECT_ROOT = os.path.abspath(os.path.join(BASE_DIR, ".."))  # project root (one level up)
@@ -77,17 +84,22 @@ os.makedirs(HEATMAP_DIR, exist_ok=True)
 # You can replace the `path` with an absolute path if you prefer.
 # -----------------------
 MODEL_REGISTRY: List[Dict[str, Any]] = [
-    # Models created from Keras pre-trained models
-    {"name": "MobileNetV2_Deepfake", "path": "mobilenetv2_deepfake.h5", "framework": "keras", "input_size": 224, "version": "1.0"},
-    {"name": "EfficientNetB0_Deepfake", "path": "efficientnet_b0_deepfake.h5", "framework": "keras", "input_size": 224, "version": "1.0"},
-    {"name": "Xception_Deepfake", "path": "xception_deepfake.h5", "framework": "keras", "input_size": 299, "version": "1.0"},
-    {"name": "ResNet50_Deepfake", "path": "resnet50_deepfake.h5", "framework": "keras", "input_size": 224, "version": "1.0"},
-    
-    # Models that need special handling (currently not working)
-    # {"name": "XceptionFake", "path": "deepfake_detection_xception_180k_14epochs.h5", "framework": "keras", "input_size": 299, "version": "1.0", "load_with_legacy": True},
-    # Note: XceptionModel.keras and InceptionV3Model.keras have architecture issues (Flatten layer receiving list)
-    # Note: model2.keras has been replaced with MobileNetV2_Deepfake
-    # They are excluded from the registry until fixed
+    # Adaptive Detection Model (Smart Routing)
+    # - If metadata exists → Uses fast metadata analysis
+    # - If metadata stripped → Falls back to visual AI analysis (Patch-MIL)
+    {
+        "name": "DeepVerify", 
+        "path": "adaptive_virtual", 
+        "framework": "adaptive", 
+        "input_size": 224, 
+        "version": "2.0"
+    },
+
+    # Commented out Keras models for now (User Request)
+    # {"name": "MobileNetV2_Deepfake", "path": "mobilenetv2_deepfake.h5", "framework": "keras", "input_size": 224, "version": "1.0"},
+    # {"name": "EfficientNetB0_Deepfake", "path": "efficientnet_b0_deepfake.h5", "framework": "keras", "input_size": 224, "version": "1.0"},
+    # {"name": "Xception_Deepfake", "path": "xception_deepfake.h5", "framework": "keras", "input_size": 299, "version": "1.0"},
+    # {"name": "ResNet50_Deepfake", "path": "resnet50_deepfake.h5", "framework": "keras", "input_size": 224, "version": "1.0"},
 ]
 
 # Lightweight cache to avoid reload
@@ -97,6 +109,16 @@ _MODEL_CACHE_LOCK = threading.Lock()
 # -----------------------
 # Loaders
 # -----------------------
+# -----------------------
+# Loaders
+# -----------------------
+# Import the metadata analyzer
+try:
+    from .metadata_analyzer import analyze_image_metadata_sync
+except ImportError:
+    # Graceful fallback if not found
+    analyze_image_metadata_sync = None 
+
 def _load_torch_model(path: str):
     if not TORCH_AVAILABLE:
         raise RuntimeError("Torch not available. Install torch to load .pt models.")
@@ -309,7 +331,60 @@ def _load_model_entry(entry: Dict[str, Any]):
     Prints candidates it tried.
     """
     name = entry.get("name", "unknown")
+    framework = entry.get("framework", "").lower()
     raw_path = entry.get("path")
+
+    # Special handling for Metadata "Fake Model"
+    if framework == "metadata":
+        return "metadata_virtual_model"
+    
+    # Special handling for Transformers (Hugging Face)
+    if framework == "transformers":
+        if not TRANSFORMERS_AVAILABLE:
+            raise RuntimeError("transformers library not found. Install it with `pip install transformers`.")
+        
+        # Check cache
+        cache_key = f"{name}:{raw_path}"
+        with _MODEL_CACHE_LOCK:
+            if cache_key in _MODEL_CACHE:
+                return _MODEL_CACHE[cache_key]
+        
+        # Load pipeline (Force CPU to avoid the CUDA errors seen earlier, unless user fixes CUDA)
+        print(f"[models_interface] Loading Hugging Face pipeline: {raw_path}")
+        # device=-1 means CPU
+        try:
+            model = pipeline("image-classification", model=raw_path, device=-1)
+        except Exception as e:
+            raise RuntimeError(f"Failed to load Hugging Face model {raw_path}: {e}")
+
+        with _MODEL_CACHE_LOCK:
+            _MODEL_CACHE[cache_key] = model
+        return model
+
+    # Special handling for Patch-based Detector
+    if framework == "patch_detector":
+        cache_key = f"{name}:patch_detector"
+        with _MODEL_CACHE_LOCK:
+            if cache_key in _MODEL_CACHE:
+                return _MODEL_CACHE[cache_key]
+        
+        print(f"[models_interface] Loading PatchBasedDetector...")
+        try:
+            from .deepfake_model import create_detector
+            model = create_detector()
+            model.eval()
+        except Exception as e:
+            raise RuntimeError(f"Failed to load PatchBasedDetector: {e}")
+        
+        with _MODEL_CACHE_LOCK:
+            _MODEL_CACHE[cache_key] = model
+        return model
+
+    # Special handling for Adaptive (Smart Routing) Model
+    if framework == "adaptive":
+        # Return a dict with both possible models lazily loaded
+        return {"type": "adaptive_router"}
+
     if not raw_path:
         raise RuntimeError(f"Model entry for '{name}' missing 'path'")
     
@@ -802,6 +877,251 @@ def _run_single_model(entry: Dict[str, Any], file_path: str, job_id: Optional[in
     version = entry.get("version", "1.0")
     input_size = int(entry.get("input_size", 224))
     framework = entry.get("framework", None)
+    
+    # -------------------------------------------------------------------------
+    # ADAPTIVE (SMART ROUTING) LOGIC
+    # Step 1: Check metadata first
+    # Step 2: If metadata stripped → use visual AI (PatchBasedDetector)
+    # Step 3: If metadata exists → use metadata result
+    # -------------------------------------------------------------------------
+    if framework == "adaptive":
+        t0 = time.time()
+        try:
+            print(f"[models_interface] Running Adaptive Analysis for {name}...")
+            
+            # Step 1: Analyze metadata
+            if not analyze_image_metadata_sync:
+                raise ImportError("metadata_analyzer module not found")
+            
+            meta_res = analyze_image_metadata_sync(file_path)
+            indicators = meta_res.get("indicators", [])
+            is_stripped = any(ind.get("type") == "possible_metadata_stripping" for ind in indicators)
+            is_ai = meta_res.get("is_ai_generated", False)
+            
+            # Step 2: Route based on metadata availability
+            if is_stripped:
+                # Metadata stripped → Use visual AI analysis
+                print(f"[models_interface] Metadata stripped, falling back to visual AI analysis...")
+                
+                from .deepfake_model import create_detector, predict
+                
+                # Load or get cached detector
+                cache_key = "DeepVerify:patch_detector"
+                with _MODEL_CACHE_LOCK:
+                    if cache_key in _MODEL_CACHE:
+                        detector = _MODEL_CACHE[cache_key]
+                    else:
+                        detector = create_detector()
+                        detector.eval()
+                        _MODEL_CACHE[cache_key] = detector
+                
+                result = predict(detector, file_path, device="cpu")
+                
+                return {
+                    "name": name,
+                    "version": version,
+                    "confidence_real": result["confidence_real"],
+                    "confidence_fake": result["confidence_fake"],
+                    "label": result["label"],
+                    "time_ms": int((time.time() - t0) * 1000),
+                    "heatmap_path": "N/A",
+                    "analysis_mode": "visual_ai",
+                }
+            else:
+                # Metadata exists → Use metadata result
+                print(f"[models_interface] Metadata found, using native analysis...")
+                
+                if is_ai:
+                    confidence_raw = meta_res.get("confidence", 0.0)
+                    confidence_fake = max(confidence_raw, 0.6)
+                    confidence_real = 1.0 - confidence_fake
+                    label = "fake"
+                else:
+                    confidence_real = 0.95
+                    confidence_fake = 0.05
+                    label = "real"
+                
+                return {
+                    "name": name,
+                    "version": version,
+                    "confidence_real": confidence_real,
+                    "confidence_fake": confidence_fake,
+                    "label": label,
+                    "time_ms": int((time.time() - t0) * 1000),
+                    "heatmap_path": "N/A",
+                    "analysis_mode": "metadata",
+                }
+                
+        except Exception as e:
+            print(f"[models_interface] Error in adaptive analysis: {e}")
+            import traceback
+            traceback.print_exc()
+            return {
+                "name": name,
+                "version": version,
+                "confidence_real": 0.5,
+                "confidence_fake": 0.5,
+                "label": "error",
+                "time_ms": 0.0,
+                "heatmap_path": "N/A",
+            }
+
+    # -------------------------------------------------------------------------
+    # METADATA "FAKE MODEL" LOGIC
+    # -------------------------------------------------------------------------
+    if framework == "metadata":
+        try:
+            print(f"[models_interface] Running Metadata Analyzer (masked as model)...")
+            if not analyze_image_metadata_sync:
+                raise ImportError("metadata_analyzer module not found")
+                
+            meta_res = analyze_image_metadata_sync(file_path)
+            
+            is_ai = meta_res.get("is_ai_generated", False)
+            confidence_raw = meta_res.get("confidence", 0.0)
+            
+            # Map metadata result to "Real vs Fake" probabilities
+            # Indicators check
+            indicators = meta_res.get("indicators", [])
+            is_stripped = any(ind.get("type") == "possible_metadata_stripping" for ind in indicators)
+            
+            if is_ai:
+                # AI Detected!
+                confidence_fake = max(confidence_raw, 0.6) # Ensure at least 60% if flagged as AI
+                confidence_real = 1.0 - confidence_fake
+                label = "fake"
+            elif is_stripped:
+                # Stripped metadata -> Leaning real but lower confidence
+                confidence_real = 0.55
+                confidence_fake = 0.45
+                label = "real"
+            else:
+                # Truly no AI signs found (and had metadata) -> Likely Real
+                confidence_real = 0.95
+                confidence_fake = 0.05
+                label = "real"
+
+            # Fake delay for 10 seconds (User Request)
+            print(f"[models_interface] Simulating 10s analysis delay for Native model...")
+            time.sleep(10)
+
+            return {
+                "name": name,
+                "version": version,
+                "confidence_real": confidence_real,
+                "confidence_fake": confidence_fake,
+                "label": label,
+                "time_ms": 150.0, # Fake timing
+                "heatmap_path": "N/A", # No heatmap for metadata
+            }
+
+        except Exception as e:
+            traceback.print_exc()
+            return {
+                "name": name,
+                "version": version,
+                "confidence_real": 0.5,
+                "confidence_fake": 0.5,
+                "label": "error",
+                "time_ms": 0.0,
+                "heatmap_path": "N/A",
+            }
+
+    # -------------------------------------------------------------------------
+    # TRANSFORMERS LOGIC
+    # -------------------------------------------------------------------------
+    if framework == "transformers":
+        try:
+            model = _load_model_entry(entry)
+            print(f"[models_interface] Running Hugging Face prediction for {name}...")
+            
+            # Pipeline accepts path directly
+            # Returns list of dicts: [{'label': 'Fake', 'score': 0.99}, {'label': 'Real', 'score': 0.01}]
+            results = model(file_path)
+            
+            # Parse results
+            # We need to map labels to Real/Fake confidence
+            confidence_real = 0.0
+            confidence_fake = 0.0
+            
+            for res in results:
+                lbl = res['label'].lower()
+                score = res['score']
+                
+                if "real" in lbl:
+                    confidence_real = score
+                elif "fake" in lbl or "deepfake" in lbl:
+                    confidence_fake = score
+            
+            # Normalize if needed (pipeline usually softmaxes them already)
+            label = "fake" if confidence_fake > confidence_real else "real"
+            
+            return {
+                "name": name,
+                "version": version,
+                "confidence_real": confidence_real,
+                "confidence_fake": confidence_fake,
+                "label": label,
+                "time_ms": int((time.time() - t0) * 1000),
+                "heatmap_path": "N/A", # Heatmap not implemented for HF pipeline yet
+            }
+            
+        except Exception as e:
+            traceback.print_exc()
+            return {
+                "name": name,
+                "version": version,
+                "confidence_real": 0.5,
+                "confidence_fake": 0.5,
+                "label": "error",
+                "time_ms": 0.0,
+                "heatmap_path": "N/A",
+            }
+
+        except Exception as e:
+            traceback.print_exc()
+            return {
+                "name": name,
+                "version": version,
+                "heatmap_path": "N/A",
+            }
+
+    # -------------------------------------------------------------------------
+    # PATCH-BASED DETECTOR LOGIC
+    # -------------------------------------------------------------------------
+    if framework == "patch_detector":
+        t0 = time.time()
+        try:
+            model = _load_model_entry(entry)
+            print(f"[models_interface] Running PatchBasedDetector for {name}...")
+            
+            from .deepfake_model import predict
+            result = predict(model, file_path, device="cpu")
+            
+            return {
+                "name": name,
+                "version": version,
+                "confidence_real": result["confidence_real"],
+                "confidence_fake": result["confidence_fake"],
+                "label": result["label"],
+                "time_ms": int((time.time() - t0) * 1000),
+                "heatmap_path": "N/A",
+            }
+            
+        except Exception as e:
+            traceback.print_exc()
+            return {
+                "name": name,
+                "version": version,
+                "confidence_real": 0.5,
+                "confidence_fake": 0.5,
+                "label": "error",
+                "time_ms": 0.0,
+                "heatmap_path": "N/A",
+            }
+    # -------------------------------------------------------------------------
+    # STANDARD MODEL LOGIC
+    # -------------------------------------------------------------------------
     try:
         model = _load_model_entry(entry)
     except Exception as e:

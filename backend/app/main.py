@@ -660,3 +660,7 @@ def create_demo_job(
 
 app.include_router(support_router, prefix="/api")
 app.include_router(payments_router, prefix="/api")
+
+# Community contributions
+from .contributions import router as contributions_router
+app.include_router(contributions_router, prefix="/api")

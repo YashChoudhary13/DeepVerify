@@ -69,3 +69,7 @@ Thumbs.db
 .DS_Store
 
 
+
+# Scripts and External Tools
+scripts/
+TrustGuard/
