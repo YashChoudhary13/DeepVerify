@@ -37,7 +37,7 @@ export default function Dashboard() {
 
       <Navbar />
 
-      <main className="pt-16">
+      <main className="pt-24">
         <div className="container mx-auto px-4 py-8 md:py-12">
           <div className="max-w-5xl mx-auto">
             {/* Header */}

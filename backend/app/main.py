@@ -10,7 +10,7 @@ from fastapi import (
 import asyncio
 import threading
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import FileResponse
+from fastapi.responses import FileResponse, Response
 from sqlalchemy.orm import Session
 from datetime import timedelta
 import os
@@ -58,9 +58,17 @@ app = FastAPI(title="DeepVerify API")
 # -------------------------------------
 # CORS
 # -------------------------------------
+# CORS - prefer explicit origins when using credentials
+# Set FRONTEND_ORIGINS env var to a comma-separated list like "http://localhost:3000,http://example.com"
+FRONTEND_ORIGINS = os.getenv("FRONTEND_ORIGINS", "http://localhost:3000")
+if FRONTEND_ORIGINS.strip() == "*":
+    allowed_origins = ["*"]
+else:
+    allowed_origins = [o.strip() for o in FRONTEND_ORIGINS.split(",") if o.strip()]
+
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],  # adjust in production
+    allow_origins=allowed_origins,
     allow_methods=["*"],
     allow_headers=["*"],
     allow_credentials=True,
@@ -196,6 +204,7 @@ async def upload_image(
             filename=save_path,
             db=db,
             user_id=current_user.id,
+            image_data=content,
         )
 
         # Increment usage count
@@ -300,8 +309,13 @@ def transform_job_for_frontend(job):
 
 
             img_url = None
+            # Prefer file path when available, otherwise use image_data stored in DB
             if job.file_path and os.path.exists(job.file_path):
                 fname = os.path.basename(job.file_path)
+                img_url = f"{BASE_URL}/api/uploads/{fname}"
+            elif getattr(job, "image_data", None):
+                # construct a filename from image_id (use .jpg by default)
+                fname = f"{getattr(job, 'image_id', 'image')}.jpg"
                 img_url = f"{BASE_URL}/api/uploads/{fname}"
 
             models.append(
@@ -323,6 +337,8 @@ def transform_job_for_frontend(job):
     if job.file_path and os.path.exists(job.file_path):
         fname = os.path.basename(job.file_path)
         image = {"thumbnail_url": f"/api/uploads/{fname}"}
+    elif getattr(job, "image_data", None):
+        image = {"thumbnail_url": f"/api/uploads/{getattr(job, 'image_id', 'image')}.jpg"}
 
     return {
         "job_id": job.id,
@@ -380,7 +396,44 @@ def dashboard(current_user: User = Depends(get_current_active_user), db: Session
 # =================================================================
 
 @app.get("/api/uploads/{filename}")
-def get_uploaded_file(filename: str):
+def get_uploaded_file(filename: str, db: Session = Depends(get_db)):
+    # Try to serve from DB blob first. Support three cases:
+    # 1) job.file_path contains the filename
+    # 2) filename equals <image_id>.ext (we strip ext and match image_id)
+    # 3) job.image_data exists even if file_path is None
+    try:
+        from . import models
+
+        # 1) match by file_path containing filename
+        job = db.query(models.Job).filter(models.Job.file_path.like(f"%{filename}")).first()
+        if job and getattr(job, "image_data", None):
+            ext = os.path.splitext(filename)[1].lower()
+            media = "image/png" if ext == ".png" else "image/jpeg"
+            return Response(content=job.image_data, media_type=media)
+
+        # 2) match by image_id (filename may be <image_id>.jpg)
+        base = os.path.splitext(filename)[0]
+        job_by_id = db.query(models.Job).filter(models.Job.image_id == base).first()
+        if job_by_id and getattr(job_by_id, "image_data", None):
+            # choose media type from requested filename
+            ext = os.path.splitext(filename)[1].lower()
+            media = "image/png" if ext == ".png" else "image/jpeg"
+            return Response(content=job_by_id.image_data, media_type=media)
+
+        # 3) as fallback, if any job has image_data with matching basename
+        # (covers cases where file_path is absolute and not matched by like())
+        jobs = db.query(models.Job).all()
+        for j in jobs:
+            if getattr(j, "image_data", None):
+                # attempt to match by basename of file_path
+                if j.file_path and os.path.basename(j.file_path) == filename:
+                    ext = os.path.splitext(filename)[1].lower()
+                    media = "image/png" if ext == ".png" else "image/jpeg"
+                    return Response(content=j.image_data, media_type=media)
+    except Exception:
+        # ignore DB errors and fallback to disk
+        pass
+
     file_path = os.path.join(UPLOAD_DIR, filename)
     if not os.path.exists(file_path):
         raise HTTPException(status_code=404, detail="File not found")
@@ -388,7 +441,17 @@ def get_uploaded_file(filename: str):
 
 
 @app.get("/api/heatmaps/{filename}")
-def get_heatmap_file(filename: str):
+def get_heatmap_file(filename: str, db: Session = Depends(get_db)):
+    # Try to serve from DB blob first
+    try:
+        from . import models
+        res = db.query(models.ModelResult).filter(models.ModelResult.heatmap_path == filename).first()
+        if res and getattr(res, "heatmap_data", None):
+            return Response(content=res.heatmap_data, media_type="image/png")
+    except Exception:
+        # ignore DB errors and fallback
+        pass
+
     file_path = os.path.join(HEATMAP_DIR, filename)
     if not os.path.exists(file_path):
         raise HTTPException(status_code=404, detail="Heatmap not found")
@@ -505,6 +568,38 @@ def debug_job(job_id: int, db: Session = Depends(get_db)):
         "created_at": job.created_at.isoformat() if job.created_at else None,
     }
 
+
+@app.get("/api/debug/job_blobs/{job_id}")
+def debug_job_blobs(job_id: int, db: Session = Depends(get_db)):
+    """Return diagnostics about presence of image/heatmap blobs for a job.
+    Useful for debugging why images might not render.
+    """
+    from . import models
+
+    job = db.query(models.Job).filter(models.Job.id == job_id).first()
+    if not job:
+        raise HTTPException(status_code=404, detail="Job not found")
+
+    info = {
+        "job_id": job.id,
+        "image_id": getattr(job, "image_id", None),
+        "file_path": job.file_path,
+        "has_image_data": bool(getattr(job, "image_data", None)),
+        "image_size": len(job.image_data) if getattr(job, "image_data", None) else 0,
+        "results": []
+    }
+
+    results = db.query(models.ModelResult).filter(models.ModelResult.job_id == job_id).all()
+    for r in results:
+        info["results"].append({
+            "model_name": r.model_name,
+            "heatmap_path": r.heatmap_path,
+            "has_heatmap_data": bool(getattr(r, "heatmap_data", None)),
+            "heatmap_size": len(r.heatmap_data) if getattr(r, "heatmap_data", None) else 0,
+        })
+
+    return info
+
 @app.post("/api/jobs/demo")
 def create_demo_job(
     current_user: User = Depends(get_current_active_user),
@@ -528,12 +623,21 @@ def create_demo_job(
     dest_path = os.path.join(UPLOAD_DIR, f"{image_id}.jpg")
     shutil.copy(sample_src, dest_path)
 
-    # Create job EXACTLY like normal upload
+    # Read the sample bytes and store in DB as well
+    sample_bytes = None
+    try:
+        with open(dest_path, "rb") as sf:
+            sample_bytes = sf.read()
+    except Exception:
+        sample_bytes = None
+
+    # Create job EXACTLY like normal upload (store bytes in DB)
     job = crud.create_job(
         img_id=image_id,
         filename=dest_path,
         db=db,
         user_id=current_user.id,
+        image_data=sample_bytes,
     )
 
     # IMPORTANT: mark job as demo (dynamic attribute)

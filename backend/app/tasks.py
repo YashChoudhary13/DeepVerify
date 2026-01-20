@@ -6,7 +6,7 @@ from .database import SessionLocal
 from . import crud
 from . import models
 from .config import CELERY_BROKER_URL, CELERY_RESULT_BACKEND, USE_CELERY
-from .models_interface import run_models_on_image  # must return {"models": [...], "consensus": {...}}
+from .models_interface import run_models_on_image, HEATMAP_DIR  # must return {"models": [...], "consensus": {...}}
 from datetime import datetime
 
 # Try to initialize Celery, fallback to None if Redis unavailable
@@ -99,6 +99,16 @@ def run_analysis_sync(job_id: int, file_path: str):
                     confidence_fake = float(m.get("confidence_fake", 0.0))
                     label = m.get("label", "unknown")
                     heatmap_path = m.get("heatmap_path", "N/A")
+                    heatmap_bytes = None
+                    # If heatmap was written to disk by models_interface, read its bytes to store in DB
+                    try:
+                        if heatmap_path and heatmap_path != "N/A":
+                            heat_fp = os.path.join(HEATMAP_DIR, heatmap_path)
+                            if os.path.exists(heat_fp):
+                                with open(heat_fp, "rb") as hf:
+                                    heatmap_bytes = hf.read()
+                    except Exception as e:
+                        print(f"[tasks] Warning: could not read heatmap bytes for {heatmap_path}: {e}")
                     
                     print(f"[tasks] Saving result: model={model_name}, real={confidence_real:.4f}, fake={confidence_fake:.4f}, label={label}")
                     
@@ -110,6 +120,7 @@ def run_analysis_sync(job_id: int, file_path: str):
                         label=label,
                         heatmap_path=heatmap_path,
                         db=db,
+                        heatmap_bytes=heatmap_bytes,
                     )
                     model_count += 1
                     print(f"[tasks] ✓ Saved result for model: {model_name}")

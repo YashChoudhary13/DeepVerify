@@ -102,6 +102,17 @@ export default function ResultPage() {
 // Image
 if (job.image?.thumbnail_url) {
   try {
+    const resolveUrl = (u: string) => {
+      if (!u) return u;
+      if (u.startsWith("http")) return u;
+      // If url is an API path (starts with /api/) prefix with API base
+      if (u.startsWith("/api/")) return `${process.env.NEXT_PUBLIC_API_URL}${u}`;
+      // Otherwise treat as frontend public asset path
+      return u;
+    };
+
+    const imgSrc = resolveUrl(job.image.thumbnail_url);
+
     const imgData = await new Promise<string>((resolve, reject) => {
       const img = new Image();
       img.crossOrigin = "Anonymous";
@@ -118,17 +129,16 @@ if (job.image?.thumbnail_url) {
         }
       };
       img.onerror = reject;
-      img.src = `${process.env.NEXT_PUBLIC_API_URL}${job.image.thumbnail_url}`;
+      img.src = imgSrc;
     });
 
-
-        // Add image (x, y, w, h) - adjust aspect ratio if needed, here fixed size for simplicity
-        doc.addImage(imgData, "JPEG", 14, 45, 50, 50);
-      } catch (err) {
-        console.error("Failed to load image for PDF", err);
-        doc.text("(Image failed to load)", 14, 60);
-      }
-    }
+    // Add image (x, y, w, h) - adjust aspect ratio if needed, here fixed size for simplicity
+    doc.addImage(imgData, "JPEG", 14, 45, 50, 50);
+  } catch (err) {
+    console.error("Failed to load image for PDF", err);
+    doc.text("(Image failed to load)", 14, 60);
+  }
+}
 
     // Consensus
     const consensusY = 110;
@@ -203,6 +213,37 @@ if (job.image?.thumbnail_url) {
     );
   }
 
+  // Show a friendly loading screen while analysis is running
+  if (isProcessing) {
+    return (
+      <div className="min-h-screen bg-background">
+        <Navbar />
+
+        <main className="pt-24 max-w-4xl mx-auto px-4 py-20">
+          <div className="max-w-3xl mx-auto text-center">
+            <div className="mb-6">
+              <h1 className="text-3xl font-bold mb-2">{t("result.title")}</h1>
+              <p className="text-muted-foreground">{t("result.loadingMessage") ?? "Analysis in progress..."}</p>
+            </div>
+
+            <div className="rounded-xl border border-border bg-card p-8 shadow-sm">
+              <div className="flex flex-col items-center gap-4">
+                <Loader2 className="h-10 w-10 animate-spin text-muted-foreground" />
+                <div className="text-lg font-semibold">{t("result.analyzing") ?? "Analyzing image"}</div>
+                <div className="text-sm text-muted-foreground">{t("result.pleaseWait") ?? "This may take a minute depending on model load time."}</div>
+              </div>
+              <div className="mt-8 space-y-2">
+                <Skeleton className="h-6 w-full" />
+                <Skeleton className="h-48 w-full" />
+                <Skeleton className="h-6 w-3/4" />
+              </div>
+            </div>
+          </div>
+        </main>
+      </div>
+    );
+  }
+
   return (
     <div className="min-h-screen bg-background">
       <Head>
@@ -211,7 +252,7 @@ if (job.image?.thumbnail_url) {
 
       <Navbar />
 
-      <main className="pt-16 max-w-7xl mx-auto px-4 py-12">
+      <main className="pt-24 max-w-7xl mx-auto px-4 py-12">
         <div className="mb-8">
           <h1 className="text-3xl font-bold mb-2">{t("result.title")}</h1>
           <p className="text-muted-foreground">{job.job_id}</p>
@@ -225,7 +266,11 @@ if (job.image?.thumbnail_url) {
               consensus={job.consensus}
               imageUrl={
                 job.image?.thumbnail_url
-                  ? `${process.env.NEXT_PUBLIC_API_URL}${job.image.thumbnail_url}`
+                  ? (job.image.thumbnail_url.startsWith("http")
+                      ? job.image.thumbnail_url
+                      : job.image.thumbnail_url.startsWith("/api/")
+                        ? `${process.env.NEXT_PUBLIC_API_URL}${job.image.thumbnail_url}`
+                        : job.image.thumbnail_url)
                   : undefined
               }
             />
@@ -252,7 +297,11 @@ if (job.image?.thumbnail_url) {
               <img
                 src={
                   job.image?.thumbnail_url
-                    ? `${process.env.NEXT_PUBLIC_API_URL}${job.image.thumbnail_url}`
+                    ? (job.image.thumbnail_url.startsWith("http")
+                        ? job.image.thumbnail_url
+                        : job.image.thumbnail_url.startsWith("/api/")
+                          ? `${process.env.NEXT_PUBLIC_API_URL}${job.image.thumbnail_url}`
+                          : job.image.thumbnail_url)
                     : undefined
                 }
                 alt={t("result.analyzedImage")}

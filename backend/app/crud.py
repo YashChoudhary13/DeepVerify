@@ -17,8 +17,9 @@ def create_user(username: str, email: str, password: str, db: Session):
     return user
 
 
-def create_job(img_id: str, filename: str, db: Session, user_id: int = None):
-    job = models.Job(image_id=img_id, file_path=filename, user_id=user_id)
+def create_job(img_id: str, filename: str, db: Session, user_id: int = None, image_data: bytes = None):
+    # image_data: optional raw bytes of the uploaded image to store in DB
+    job = models.Job(image_id=img_id, file_path=filename, user_id=user_id, image_data=image_data)
     db.add(job)
     db.commit()
     db.refresh(job)
@@ -57,8 +58,9 @@ def get_recent_jobs(db: Session, user_id: int = None):
 
 
 def add_model_result(job_id, model_name, confidence_real,
-                     confidence_fake, label, heatmap_path, db: Session):
+                     confidence_fake, label, heatmap_path, db: Session, heatmap_bytes: bytes = None):
 
+    # heatmap_bytes: optional PNG/JPEG bytes to persist in DB
     result = models.ModelResult(
         job_id=job_id,
         model_name=model_name,
@@ -66,6 +68,7 @@ def add_model_result(job_id, model_name, confidence_real,
         confidence_fake=confidence_fake,
         label=label,
         heatmap_path=heatmap_path,
+        heatmap_data=heatmap_bytes,
     )
     db.add(result)
     db.commit()

@@ -172,16 +172,15 @@ export default function UploadCard() {
       ) : (
         <div className="space-y-6">
           <div className="relative">
-            <div className="w-full max-h-96 object-contain rounded-lg bg-slate-50 p-6 flex items-center justify-center">
-              <div className="flex flex-col items-center">
-                <ImageIcon className="h-12 w-12 text-slate-400 mb-3" />
-                <div className="text-sm text-slate-700" data-testid="text-filename">
-                  {file.name}
-                </div>
-                <div className="text-xs text-slate-500">
-                  {(file.size / 1024 / 1024).toFixed(2)} MB
-                </div>
-              </div>
+            <div className="w-full max-h-96 rounded-lg bg-slate-50 p-6 flex items-center justify-center overflow-hidden">
+              {file && (
+                <img
+                  src={URL.createObjectURL(file)}
+                  alt="Preview"
+                  className="max-w-full max-h-96 object-contain"
+                  data-testid="img-file-preview"
+                />
+              )}
             </div>
 
             <Button

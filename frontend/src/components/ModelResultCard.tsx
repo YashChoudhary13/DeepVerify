@@ -81,12 +81,26 @@ export default function ModelResultCard({ model }: ModelProps) {
             <div className="space-y-3">
               <div className="relative rounded-md overflow-hidden bg-muted">
                 <img
-                  src={model.image_url || "/sample-thumbnails/placeholder.png"}
+                  src={
+                    model.image_url
+                      ? (model.image_url.startsWith("http")
+                          ? model.image_url
+                          : model.image_url.startsWith("/api/")
+                            ? `${process.env.NEXT_PUBLIC_API_URL}${model.image_url}`
+                            : model.image_url)
+                      : "/sample-thumbnails/placeholder.png"
+                  }
                   alt="Original"
                   className="w-full h-48 object-contain"
                 />
                 <img
-                  src={model.heatmap_url}
+                  src={
+                    model.heatmap_url.startsWith("http")
+                      ? model.heatmap_url
+                      : model.heatmap_url.startsWith("/api/")
+                        ? `${process.env.NEXT_PUBLIC_API_URL}${model.heatmap_url}`
+                        : model.heatmap_url
+                  }
                   alt="Heatmap overlay"
                   className="absolute inset-0 w-full h-48 object-contain mix-blend-multiply dark:mix-blend-screen"
                   style={{ opacity: opacity / 100 }}

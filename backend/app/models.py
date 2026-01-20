@@ -1,4 +1,4 @@
-from sqlalchemy import Column, Integer, String, Float, DateTime, ForeignKey, Boolean
+from sqlalchemy import Column, Integer, String, Float, DateTime, ForeignKey, Boolean, LargeBinary
 from sqlalchemy.orm import relationship
 from datetime import datetime
 
@@ -27,6 +27,8 @@ class Job(Base):
     id = Column(Integer, primary_key=True, index=True)
     image_id = Column(String, unique=True, index=True)
     file_path = Column(String)
+    # store original uploaded image in DB so it can be served from anywhere
+    image_data = Column(LargeBinary, nullable=True)
     status = Column(String, default="pending")
     created_at = Column(DateTime, default=datetime.utcnow)
     user_id = Column(Integer, ForeignKey("users.id"), nullable=True)
@@ -46,5 +48,7 @@ class ModelResult(Base):
     confidence_fake = Column(Float)
     label = Column(String)
     heatmap_path = Column(String)
+    # store generated heatmap bytes in DB for portability
+    heatmap_data = Column(LargeBinary, nullable=True)
 
     job = relationship("Job", back_populates="results")

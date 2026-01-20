@@ -134,7 +134,10 @@
     "jobNotFound": "Job not found.",
     "rerunFailed": "Failed to re-run analysis",
     "rerunStarted": "Analysis re-run started! The page will update automatically.",
-    "rerunError": "Failed to re-run analysis. Please try again."
+    "rerunError": "Failed to re-run analysis. Please try again.",
+    "analyzing": "Analyzing image",
+    "pleaseWait": "This may take a minute depending on model load time.",
+    "loadingMessage": "Analysis in progress..."
   },
   "language": {
     "selectLanguage": "Select Language",
