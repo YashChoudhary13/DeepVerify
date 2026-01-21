@@ -86,6 +86,13 @@ os.makedirs(UPLOAD_DIR, exist_ok=True)
 HEATMAP_DIR = os.path.abspath(os.path.join(backend_dir, "..", "data", "heatmaps"))
 os.makedirs(HEATMAP_DIR, exist_ok=True)
 
+REVERSE_IMAGE_DIR = os.path.abspath(os.path.join(backend_dir, "..", "data", "reverse-images"))
+os.makedirs(REVERSE_IMAGE_DIR, exist_ok=True)
+
+# Mount static files for reverse images
+from fastapi.staticfiles import StaticFiles
+app.mount("/public/reverse-images", StaticFiles(directory=REVERSE_IMAGE_DIR), name="reverse-images")
+
 
 @app.get("/")
 def root():
@@ -250,6 +257,172 @@ async def upload_image(
         raise
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Upload error: {str(e)}")
+
+
+# =================================================================
+# METADATA ANALYZER — MUST BE LOGGED IN
+# =================================================================
+
+@app.post("/api/analyze/metadata")
+async def analyze_metadata(
+    file: UploadFile = File(...),
+    current_user: User = Depends(get_current_active_user),
+):
+    """
+    Extract and analyze image metadata & encoding characteristics.
+    Returns structured forensic analysis data.
+    """
+    try:
+        import hashlib
+        from .metadata_analyzer import analyze_forensic_image_bytes
+        
+        # Validate file type
+        if file.content_type not in ["image/jpeg", "image/png", "image/jpg"]:
+            raise HTTPException(
+                status_code=400, 
+                detail="Only JPEG and PNG images are supported"
+            )
+        
+        # Read file content
+        content = await file.read()
+        
+        # Validate file size (max 10MB)
+        if len(content) > 10_000_000:
+            raise HTTPException(status_code=400, detail="File size exceeds 10MB limit")
+        
+        # Compute file hash
+        file_hash = hashlib.sha256(content).hexdigest()
+        
+        # Forensic metadata + encoding analysis
+        metadata_result = analyze_forensic_image_bytes(content, file.filename)
+
+        return {
+            "success": True,
+            "filename": file.filename,
+            "file_size": len(content),
+            "file_hash": file_hash,
+            "metadata": metadata_result,
+        }
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        import traceback
+        traceback.print_exc()
+        raise HTTPException(
+            status_code=500, 
+            detail=f"Metadata extraction failed: {str(e)}"
+        )
+
+
+@app.post("/api/analyze/metadata/download-report")
+async def download_metadata_report(
+    file: UploadFile = File(...),
+    current_user: User = Depends(get_current_active_user),
+):
+    """
+    Generate and return a professional PDF forensic report.
+    """
+    try:
+        from .metadata_analyzer import analyze_forensic_image_bytes
+        from .forensics_report import generate_forensic_report
+        
+        # Validate file type
+        if file.content_type not in ["image/jpeg", "image/png", "image/jpg"]:
+            raise HTTPException(
+                status_code=400, 
+                detail="Only JPEG and PNG images are supported"
+            )
+        
+        # Read file content
+        content = await file.read()
+        
+        # Validate file size (max 10MB)
+        if len(content) > 10_000_000:
+            raise HTTPException(status_code=400, detail="File size exceeds 10MB limit")
+        
+        # Run forensic analysis
+        metadata_result = analyze_forensic_image_bytes(content, file.filename)
+        
+        # Generate PDF report
+        pdf_bytes = generate_forensic_report(
+            metadata_analysis=metadata_result,
+            image_bytes=content,
+            filename=file.filename,
+            file_size=len(content),
+        )
+        
+        return {
+            "success": True,
+            "filename": file.filename,
+            "report_available": True,
+        }
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        import traceback
+        traceback.print_exc()
+        raise HTTPException(
+            status_code=500, 
+            detail=f"Report generation failed: {str(e)}"
+        )
+
+
+# =================================================================
+# REVERSE IMAGE SEARCH
+# =================================================================
+
+@app.post("/api/tools/reverse-image")
+async def upload_reverse_image(
+    file: UploadFile = File(...),
+    current_user: User = Depends(get_current_active_user),
+):
+    """
+    Upload an image for reverse image search.
+    Returns a publicly accessible image URL.
+    """
+    try:
+        # Validate file type
+        if file.content_type not in ["image/jpeg", "image/png", "image/jpg"]:
+            raise HTTPException(
+                status_code=400, 
+                detail="Only JPEG and PNG images are supported"
+            )
+        
+        # Validate file size (max 10MB)
+        content = await file.read()
+        if len(content) > 10_000_000:
+            raise HTTPException(status_code=400, detail="File size exceeds 10MB limit")
+        
+        # Generate unique filename
+        unique_id = str(uuid.uuid4())
+        filename = f"{unique_id}.jpg"
+        filepath = os.path.join(REVERSE_IMAGE_DIR, filename)
+        
+        # Save file to disk
+        with open(filepath, "wb") as f:
+            f.write(content)
+        
+        # Determine the base URL (from environment or default to localhost)
+        base_url = os.getenv("BACKEND_URL", "http://localhost:8000")
+        image_url = f"{base_url}/public/reverse-images/{filename}"
+        
+        return {
+            "success": True,
+            "imageUrl": image_url,
+            "filename": filename,
+        }
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        import traceback
+        traceback.print_exc()
+        raise HTTPException(
+            status_code=500, 
+            detail=f"Image upload failed: {str(e)}"
+        )
 
 
 # =================================================================

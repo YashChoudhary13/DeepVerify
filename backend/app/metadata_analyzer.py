@@ -6,9 +6,12 @@ Analyzes image metadata for AI generation indicators.
 Integrates with the main models_interface pipeline.
 """
 
+import io
+import math
 import os
 import struct
 import zlib
+from collections import Counter
 from typing import Dict, Any, List, Optional
 from datetime import datetime
 
@@ -40,6 +43,382 @@ AI_PNG_KEYS = [
     "parameters", "prompt", "negative_prompt", "workflow",
     "comment", "description", "software", "source", "ai_generated", "dream", "sd-metadata",
 ]
+
+
+# ============================================================================
+# FORENSIC ENCODING + METADATA ANALYZER (JPEG-focused)
+# ============================================================================
+
+SUBSAMPLING_MAP = {
+    0: "4:4:4",
+    1: "4:2:2",
+    2: "4:2:0",
+    3: "4:1:1",
+}
+
+
+def _entropy(values: List[int]) -> float:
+    if not values:
+        return 0.0
+    counts = Counter(values)
+    total = len(values)
+    return round(-sum((c / total) * math.log2(c / total) for c in counts.values() if c), 3)
+
+
+def _summarize_quantization(image: Image.Image) -> Dict[str, Any]:
+    qtables = getattr(image, "quantization", None)
+    if not qtables:
+        return {"present": False}
+
+    tables = {}
+    uniform_flags = []
+
+    for idx, coeffs in qtables.items():
+        coeff_list = list(coeffs)
+        if not coeff_list:
+            continue
+        mean_val = sum(coeff_list) / len(coeff_list)
+        variance = sum((c - mean_val) ** 2 for c in coeff_list) / len(coeff_list)
+        std_dev = math.sqrt(variance)
+        tables[str(idx)] = {
+            "min": int(min(coeff_list)),
+            "max": int(max(coeff_list)),
+            "mean": round(mean_val, 2),
+            "std": round(std_dev, 2),
+            "entropy": _entropy(coeff_list),
+        }
+        uniform_flags.append(std_dev < 2.0)
+
+    return {
+        "present": True,
+        "tables": tables,
+        "all_uniform": bool(tables) and all(uniform_flags),
+    }
+
+
+def _parse_jpeg_segments(image_bytes: bytes) -> Dict[str, Any]:
+    """Lightweight JPEG segment parser to identify container markers."""
+    stream = io.BytesIO(image_bytes)
+    header = stream.read(2)
+    if header != b"\xff\xd8":
+        return {"is_jpeg": False}
+
+    segments = []
+    found = {
+        "jfif": False,
+        "exif": False,
+        "xmp": False,
+        "icc": False,
+    }
+    sof_info = {}
+
+    while True:
+        marker_prefix = stream.read(1)
+        if not marker_prefix:
+            break
+        if marker_prefix != b"\xff":
+            continue
+        marker_byte = stream.read(1)
+        if not marker_byte:
+            break
+        marker = 0xFF00 | marker_byte[0]
+
+        # Standalone markers without length
+        if 0xFFD0 <= marker <= 0xFFD7 or marker == 0xFF01:
+            segments.append(marker)
+            continue
+
+        length_bytes = stream.read(2)
+        if len(length_bytes) < 2:
+            break
+        length = struct.unpack(">H", length_bytes)[0]
+        payload = stream.read(max(length - 2, 0))
+
+        if marker in range(0xFFE0, 0xFFEF + 1):  # APP0-APP15
+            ident = payload[:10]
+            if ident.startswith(b"JFIF"):
+                found["jfif"] = True
+            elif ident.startswith(b"Exif\x00\x00"):
+                found["exif"] = True
+            elif b"http://ns.adobe.com/xap/1.0/" in payload:
+                found["xmp"] = True
+            elif ident.startswith(b"ICC_PROFILE"):
+                found["icc"] = True
+
+        if marker in (0xFFC0, 0xFFC1, 0xFFC2, 0xFFC3):  # SOF markers
+            try:
+                precision = payload[0]
+                height = struct.unpack(">H", payload[1:3])[0]
+                width = struct.unpack(">H", payload[3:5])[0]
+                components = payload[5]
+                sof_info = {
+                    "precision_bits": precision,
+                    "width": width,
+                    "height": height,
+                    "components": components,
+                    "progressive": marker == 0xFFC2,
+                    "sof_marker": hex(marker),
+                }
+            except Exception:
+                pass
+
+        segments.append(marker)
+
+        if marker == 0xFFD9:  # EOI
+            break
+
+    return {
+        "is_jpeg": True,
+        "segments": [hex(m) for m in segments],
+        "presence": found,
+        "sof": sof_info,
+    }
+
+
+def _extract_exif_from_image(image: Image.Image) -> Dict[str, Any]:
+    try:
+        # Prefer piexif if available
+        try:
+            import piexif
+            exif_bytes = image.info.get("exif")
+            if exif_bytes:
+                exif_dict = piexif.load(exif_bytes)
+                flat = {}
+                for ifd in ("0th", "Exif", "GPS"):
+                    for tag_id, value in exif_dict.get(ifd, {}).items():
+                        tag_name = piexif.TAGS[ifd][tag_id]["name"]
+                        flat[tag_name] = value if not isinstance(value, bytes) else value.decode("utf-8", "ignore")
+                return flat
+        except Exception:
+            pass
+
+        exif_data = image._getexif()
+        if not exif_data:
+            return {}
+        result = {}
+        for tag_id, value in exif_data.items():
+            tag_name = TAGS.get(tag_id, tag_id)
+            if isinstance(value, bytes):
+                try:
+                    value = value.decode('utf-8', errors='ignore')
+                except Exception:
+                    value = str(value)
+            result[str(tag_name)] = value
+        return result
+    except Exception:
+        return {}
+
+
+def _extract_xmp_from_bytes(image_bytes: bytes) -> Dict[str, Any]:
+    xmp_data = {}
+    try:
+        content = image_bytes
+        xmp_start = content.find(b"<x:xmpmeta")
+        if xmp_start == -1:
+            xmp_start = content.find(b"<?xpacket begin")
+
+        if xmp_start != -1:
+            xmp_end = content.find(b"</x:xmpmeta>", xmp_start)
+            if xmp_end == -1:
+                xmp_end = content.find(b"<?xpacket end", xmp_start)
+
+            if xmp_end != -1:
+                xmp_packet = content[xmp_start:xmp_end + 50].decode('utf-8', errors='ignore')
+
+                import re
+
+                match = re.search(r'<xmp:CreatorTool>([^<]+)</xmp:CreatorTool>', xmp_packet)
+                if match:
+                    xmp_data['creator_tool'] = match.group(1)
+
+                match = re.search(r'<tiff:Software>([^<]+)</tiff:Software>', xmp_packet)
+                if match:
+                    xmp_data['software'] = match.group(1)
+
+                if 'c2pa' in xmp_packet.lower() or 'content credentials' in xmp_packet.lower():
+                    xmp_data['c2pa_detected'] = True
+
+                if 'ai_generated' in xmp_packet.lower() or 'generative' in xmp_packet.lower():
+                    xmp_data['ai_marker_detected'] = True
+    except Exception:
+        pass
+    return xmp_data
+
+
+def _check_c2pa_bytes(image_bytes: bytes) -> Dict[str, Any]:
+    c2pa_result = {"detected": False, "source": None, "details": []}
+    try:
+        content_lower = image_bytes.lower()
+        c2pa_markers = [
+            b'c2pa', b'content credentials', b'contentcredentials',
+            b'cai_claim', b'cai:claim', b'jumb',
+            b'c2pa.assertions', b'c2pa_manifest',
+        ]
+        for marker in c2pa_markers:
+            if marker in content_lower:
+                c2pa_result["detected"] = True
+                c2pa_result["details"].append(f"Found marker: {marker.decode('utf-8', errors='ignore')}")
+
+        if b'dall-e' in content_lower or b'dalle' in content_lower:
+            c2pa_result["source"] = "DALL-E"
+        elif b'openai' in content_lower:
+            c2pa_result["source"] = "OpenAI"
+        elif b'adobe firefly' in content_lower:
+            c2pa_result["source"] = "Adobe Firefly"
+        elif b'bing' in content_lower:
+            c2pa_result["source"] = "Bing Image Creator"
+    except Exception:
+        pass
+    return c2pa_result
+
+
+def analyze_forensic_image_bytes(image_bytes: bytes, filename: str = "uploaded") -> Dict[str, Any]:
+    """
+    Combined EXIF + JPEG container/encoding analysis.
+    Returns structured JSON plus human-readable forensic interpretation.
+    """
+    try:
+        img = Image.open(io.BytesIO(image_bytes))
+    except Exception as exc:
+        return {
+            "has_metadata": False,
+            "message": f"Failed to open image: {exc}",
+            "categories": {},
+        }
+
+    info = img.info or {}
+
+    # Core captures
+    basic = {
+        "Filename": filename,
+        "Format": img.format,
+        "Dimensions": f"{img.width} × {img.height}",
+        "Color Mode": img.mode,
+        "DPI": str(info.get("dpi") or info.get("jfif_density") or "Not set"),
+    }
+
+    exif = _extract_exif_from_image(img)
+    xmp = _extract_xmp_from_bytes(image_bytes)
+    c2pa = _check_c2pa_bytes(image_bytes)
+
+    jpeg_container_raw = {}
+    encoding_display = {}
+    quant_display = {}
+
+    if img.format and img.format.upper() == "JPEG":
+        jpeg_container_raw = _parse_jpeg_segments(image_bytes)
+        subsampling = info.get("subsampling")
+        
+        # Build user-friendly encoding info
+        encoding_display = {
+            "Encoding Type": "Progressive JPEG" if info.get("progressive") else "Baseline JPEG",
+            "Chroma Subsampling": SUBSAMPLING_MAP.get(subsampling, "Unknown" if subsampling is not None else "Not specified"),
+            "Color Components": str(jpeg_container_raw.get("sof", {}).get("components", "Unknown")),
+            "Bits Per Sample": str(jpeg_container_raw.get("sof", {}).get("precision_bits", 8)),
+            "Color Space": info.get("color_space") or img.mode,
+        }
+        
+        # Container segments present
+        container_present = jpeg_container_raw.get("presence", {})
+        encoding_display["JFIF Header"] = "Yes" if container_present.get("jfif") else "No"
+        encoding_display["EXIF Segment"] = "Yes" if container_present.get("exif") else "No"
+        encoding_display["XMP Segment"] = "Yes" if container_present.get("xmp") else "No"
+        encoding_display["ICC Profile"] = "Yes" if container_present.get("icc") else "No"
+        
+        quant_raw = _summarize_quantization(img)
+        if quant_raw.get("present"):
+            tables = quant_raw.get("tables", {})
+            if tables:
+                # Show summary stats for all tables
+                means = [t.get("mean", 0) for t in tables.values() if t.get("mean")]
+                all_uniform = quant_raw.get("all_uniform")
+                quant_display = {
+                    "Tables Present": f"{len(tables)} quantization table(s)",
+                    "Uniformity": "Extremely uniform (suspicious)" if all_uniform else "Normal variation",
+                    "Mean Values": f"{min(means):.0f} - {max(means):.0f}" if means else "N/A",
+                    "Pattern": "Typical for synthetic/edited images" if all_uniform else "Typical for camera captures",
+                }
+
+    # Forensic signals
+    signals: List[Dict[str, Any]] = []
+    evidence_capture: List[str] = []
+    evidence_synth: List[str] = []
+    inconclusive: List[str] = []
+
+    exif_present = bool(exif)
+    camera_make = exif.get("Make") or exif.get("CameraMake")
+    camera_model = exif.get("Model") or exif.get("CameraModel")
+    software_tag = exif.get("Software")
+
+    if exif_present:
+        if camera_make or camera_model:
+            evidence_capture.append("✓ Camera make/model present in EXIF")
+        if exif.get("GPSInfo"):
+            evidence_capture.append("✓ GPS coordinates present (strong capture signal)")
+        if exif.get("DateTimeOriginal") or exif.get("DateTime"):
+            evidence_capture.append("✓ Capture timestamp present")
+        if software_tag and not (camera_make or camera_model):
+            signals.append({"type": "exif_inconsistency", "detail": "Software tag present without camera make/model", "severity": "warn", "weight": 0.25})
+    else:
+        signals.append({"type": "no_exif", "detail": "EXIF missing or stripped", "severity": "info", "weight": 0.2})
+        evidence_synth.append("⚠ Missing EXIF (could be stripped or synthetic)")
+
+    # DPI anomalies
+    dpi = basic.get("DPI")
+    if dpi in ("Not set", "1", "(1, 1)", "(0, 0)"):
+        signals.append({"type": "dpi_anomaly", "detail": "DPI missing or anomalous (common in post-processing)", "severity": "info", "weight": 0.15})
+
+    # JPEG-specific checks
+    if jpeg_container_raw.get("is_jpeg"):
+        if not jpeg_container_raw.get("presence", {}).get("exif"):
+            signals.append({"type": "app1_missing", "detail": "JPEG APP1/EXIF segment absent (likely stripped)", "severity": "info", "weight": 0.15})
+            evidence_synth.append("⚠ Missing EXIF segment in JPEG structure")
+
+        if encoding_display.get("Chroma Subsampling") == "4:4:4" and not camera_make:
+            signals.append({"type": "editing_indicator", "detail": "4:4:4 chroma subsampling without camera EXIF (often edited/exported)", "severity": "warn", "weight": 0.25})
+            evidence_synth.append("⚠ 4:4:4 chroma + no camera EXIF suggests editing/re-export")
+
+        if "Progressive" in encoding_display.get("Encoding Type", "") and not camera_make:
+            signals.append({"type": "progressive_reencode", "detail": "Progressive JPEG without camera EXIF suggests re-encoding", "severity": "warn", "weight": 0.2})
+            evidence_synth.append("⚠ Progressive encoding without camera metadata")
+
+        if quant_display.get("Uniformity", "").startswith("Extremely"):
+            signals.append({"type": "uniform_quantization", "detail": "Quantization tables are extremely uniform", "severity": "warn", "weight": 0.25})
+            evidence_synth.append("⚠ Uniform quantization (synthetic/edited indicator)")
+
+    # XMP / C2PA markers
+    if xmp.get("ai_marker_detected"):
+        evidence_synth.append("⚠ XMP indicates AI/generative tool use")
+    if c2pa.get("detected"):
+        evidence_capture.append("✓ C2PA content credentials present")
+
+    # Build summary buckets
+    if not evidence_capture and not evidence_synth:
+        inconclusive.append("No strong forensic signals found; visual analysis recommended")
+
+    forensic_summary = {
+        "evidence_of_capture": evidence_capture if evidence_capture else ["No capture evidence detected"],
+        "evidence_of_synthetic_or_post": evidence_synth if evidence_synth else ["No post-processing/synthetic indicators"],
+        "inconclusive": inconclusive if inconclusive else ["Analysis inconclusive; further investigation may be needed"],
+    }
+
+    categories = {
+        "Basic Information": basic,
+        "Encoding & Container": encoding_display if encoding_display else {"note": "Not a JPEG file"},
+        "Quantization Analysis": quant_display if quant_display else {"note": "No quantization data"},
+        "EXIF Metadata": exif if exif else {"Status": "Missing or stripped"},
+        "Forensic Assessment": {
+            "Evidence of Capture": "\n".join(evidence_capture) if evidence_capture else "None detected",
+            "Evidence of Synthetic/Post-Processing": "\n".join(evidence_synth) if evidence_synth else "None detected",
+            "Inconclusive Signals": "\n".join(inconclusive) if inconclusive else "None",
+        }
+    }
+
+    return {
+        "has_metadata": True,
+        "categories": categories,
+        "forensic_summary": forensic_summary,
+    }
 
 
 # ============================================================================

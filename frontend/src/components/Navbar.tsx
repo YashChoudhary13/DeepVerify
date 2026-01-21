@@ -5,6 +5,7 @@ import Link from "next/link";
 import { useCallback, useEffect, useState } from "react";
 import { useRouter } from "next/router";
 import { useTranslation } from "next-i18next";
+import AnimatedLink from "./AnimatedLink";
 
 import { getAuthToken, getCurrentUser, logout as apiLogout } from "@/lib/api";
 
@@ -202,10 +203,10 @@ export default function Navbar() {
   return (
     <header className="fixed top-0 left-0 right-0 z-50 bg-background/80 backdrop-blur-sm border-b">
       <nav className="container mx-auto px-4 h-16 flex items-center justify-between">
-        <Link href={signedIn ? "/indexloggedin" : "/"} className="flex items-center gap-2 cursor-pointer">
+        <AnimatedLink href={signedIn ? "/indexloggedin" : "/"} className="flex items-center gap-2 cursor-pointer">
           <Shield className="h-6 w-6 text-primary" />
           <span className="text-xl font-bold tracking-tight">DeepVerify</span>
-        </Link>
+        </AnimatedLink>
 
         <div className="flex items-center gap-4">
           {/* Language Selector Dropdown */}
@@ -241,17 +242,21 @@ export default function Navbar() {
 
           {signedIn ? (
             <>
-              <Link href="/dashboard">
+              <AnimatedLink href="/dashboard">
                 <span className="hover:text-indigo-600 cursor-pointer">{t("navbar.dashboard")}</span>
-              </Link>
+              </AnimatedLink>
 
-              <Link href="/membership">
+              <AnimatedLink href="/tools">
+                <span className="hover:text-indigo-600 cursor-pointer">{t("navbar.tools", "Tools")}</span>
+              </AnimatedLink>
+
+              <AnimatedLink href="/membership">
                 <span className="hover:text-indigo-600 cursor-pointer">{t("navbar.membership")}</span>
-              </Link>
+              </AnimatedLink>
 
-              <Link href="/support">
+              <AnimatedLink href="/support">
                 <span className="hover:text-indigo-600 cursor-pointer">{t("navbar.support")}</span>
-              </Link>
+              </AnimatedLink>
 
               <Link href="/contribute">
                 <Button variant="outline" size="sm" className="gap-2 border-primary/50 text-primary hover:bg-primary/10">
@@ -280,10 +285,10 @@ export default function Navbar() {
                   </div>
                   <DropdownMenuSeparator />
                   <DropdownMenuItem asChild>
-                    <Link href="/settings" className="cursor-pointer w-full flex items-center">
+                    <AnimatedLink href="/settings" className="cursor-pointer w-full flex items-center">
                       <Settings className="mr-2 h-4 w-4" />
                       <span>{t("navbar.settings", "Profile Settings")}</span>
-                    </Link>
+                    </AnimatedLink>
                   </DropdownMenuItem>
                   <DropdownMenuSeparator />
                   <DropdownMenuItem
@@ -302,12 +307,9 @@ export default function Navbar() {
                 <Link href="/login">{t("navbar.signIn")}</Link>
               </Button>
 
-              <Link
-                href="/register"
-                className="px-4 py-2 bg-slate-100 text-slate-700 rounded hover:bg-slate-200"
-              >
-                {t("navbar.signUp")}
-              </Link>
+              <Button asChild variant="outline">
+                <Link href="/register">{t("navbar.signUp")}</Link>
+              </Button>
             </>
           )}
         </div>

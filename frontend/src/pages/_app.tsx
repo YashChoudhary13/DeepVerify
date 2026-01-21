@@ -10,6 +10,7 @@ import { QueryClientProvider } from "@tanstack/react-query";
 import { queryClient } from "@/lib/queryClient";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { Toaster } from "@/components/ui/toaster";
+import PageTransition from "@/components/PageTransition";
 
 function App({ Component, pageProps }: AppProps) {
   return (
@@ -17,7 +18,9 @@ function App({ Component, pageProps }: AppProps) {
       <ThemeProvider attribute="class" defaultTheme="system" enableSystem>
         <TooltipProvider>
           <Toaster />
-          <Component {...pageProps} />
+          <PageTransition>
+            <Component {...pageProps} />
+          </PageTransition>
         </TooltipProvider>
       </ThemeProvider>
     </QueryClientProvider>

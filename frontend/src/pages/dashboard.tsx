@@ -3,6 +3,7 @@ import dynamic from "next/dynamic";
 import { serverSideTranslations } from "next-i18next/serverSideTranslations";
 import { useTranslation } from "next-i18next";
 import DashboardItem from "@/components/DashboardItem";
+import AnimatedCard from "@/components/AnimatedCard";
 import { fetcher } from "@/lib/api";
 import useSWR from "swr";
 import { Button } from "@/components/ui/button";
@@ -92,8 +93,10 @@ export default function Dashboard() {
             {/* Items list */}
             {!isLoading && items.length > 0 && (
               <div className="space-y-4">
-                {items.map((it: any) => (
-                  <DashboardItem key={it.job_id} item={it} />
+                {items.map((it: any, idx: number) => (
+                  <AnimatedCard key={it.job_id} index={idx}>
+                    <DashboardItem item={it} />
+                  </AnimatedCard>
                 ))}
               </div>
             )}
