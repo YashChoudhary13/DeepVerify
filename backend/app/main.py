@@ -433,28 +433,54 @@ def transform_job_for_frontend(job):
     consensus = None
 
     if job.results:
-        labels = [r.label for r in job.results]
-        fake_count = labels.count("fake")
-        real_count = labels.count("real")
-
-        if fake_count > real_count:
-            decision = "FAKE"
-            avg_conf = sum(r.confidence_fake for r in job.results) / len(job.results)
-        elif real_count > fake_count:
-            decision = "REAL"
-            avg_conf = sum(r.confidence_real for r in job.results) / len(job.results)
+        # STRICT LOGIC (User Request):
+        # 1. Find DeepVerify (Master Model)
+        # 2. Use its result for the "Final Decision" card.
+        
+        deepverify = next((r for r in job.results if r.model_name == "DeepVerify"), None)
+        
+        if deepverify:
+            # Use DeepVerify's verdict explicitly
+            decision = deepverify.label.upper() # "REAL" or "FAKE"
+            
+            # Get the relevant confidence score
+            if decision == "FAKE":
+                score = deepverify.confidence_fake
+            else:
+                score = deepverify.confidence_real
+                
+            consensus = {
+                "decision": decision,
+                "score": float(score),
+                "explanation": [
+                    f"Analyzed by {len(job.results)} model(s)",
+                    f"Verdict Source: DeepVerify (Priority Model)",
+                ],
+            }
         else:
-            decision = "UNCERTAIN"
-            avg_conf = 0.5
+            # Fallback legacy logic (Majority Vote) if DeepVerify missing
+            labels = [r.label for r in job.results]
+            fake_count = labels.count("fake")
+            real_count = labels.count("real")
 
-        consensus = {
-            "decision": decision,
-            "score": avg_conf,
-            "explanation": [
-                f"{len(job.results)} model(s) analyzed",
-                f"Majority vote: {decision.lower()}",
-            ],
-        }
+            if fake_count > real_count:
+                decision = "FAKE"
+                avg_conf = sum(r.confidence_fake for r in job.results) / len(job.results)
+            elif real_count > fake_count:
+                decision = "REAL"
+                avg_conf = sum(r.confidence_real for r in job.results) / len(job.results)
+            else:
+                decision = "UNCERTAIN"
+                avg_conf = 0.5
+
+            consensus = {
+                "decision": decision,
+                "score": avg_conf,
+                "explanation": [
+                    f"{len(job.results)} model(s) analyzed",
+                    f"Majority vote: {decision.lower()}",
+                ],
+            }
     else:
         consensus = {
             "decision": "PENDING",

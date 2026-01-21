@@ -72,6 +72,55 @@ npm run dev
 
 The frontend will run on `http://localhost:3000`
 
+---
+
+## 🪟 Windows Setup
+
+If you're on **Windows**, follow these steps instead:
+
+### Backend Setup (Windows)
+
+```cmd
+cd backend
+
+REM Create virtual environment
+python -m venv venv
+
+REM Activate it
+venv\Scripts\activate.bat
+
+REM Install dependencies
+pip install -r requirements.txt
+
+REM Start the server
+uvicorn app.main:app --reload --port 8000
+```
+
+Or simply run the batch file:
+```cmd
+cd backend
+start-backend.bat
+```
+
+### Frontend Setup (Windows)
+
+```cmd
+cd frontend
+npm install
+npm run dev
+```
+
+### ⚠️ Windows Notes
+
+1. **PyTorch**: If `pip install torch` fails, visit [pytorch.org](https://pytorch.org/get-started/locally/) and get the correct command for your system.
+
+2. **TensorFlow**: May require Visual C++ Redistributable. Download from [Microsoft](https://aka.ms/vs/17/release/vc_redist.x64.exe).
+
+3. **facenet-pytorch**: Requires `torch` to be installed first.
+
+4. **psycopg2**: If PostgreSQL is not needed (using SQLite), you can skip this or install `psycopg2-binary`.
+
+
 ## 🌐 Features
 
 - **Multi-Model Analysis**: Uses 4 different deepfake detection models

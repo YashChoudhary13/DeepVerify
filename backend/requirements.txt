@@ -22,4 +22,5 @@ psycopg2-binary
 transformers
 piexif
 tqdm
+facenet-pytorch
 reportlab

@@ -58,6 +58,15 @@ DEVICE = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 # ============================================================================
 # Dataset
 # ============================================================================
+# Import face utils from backend
+try:
+    from app.face_utils import get_face_boxes, crop_face_region
+    FACE_UTILS_AVAILABLE = True
+    print("✅ Smart Face Training enabled (MTCNN)")
+except ImportError:
+    FACE_UTILS_AVAILABLE = False
+    print("⚠️  face_utils not found, falling back to simple resize")
+
 class ContributionDataset(Dataset):
     """Dataset for loading community-contributed images."""
     
@@ -81,6 +90,15 @@ class ContributionDataset(Dataset):
         # Load image
         try:
             image = Image.open(contrib.image_path).convert("RGB")
+            
+            # --- SMART FACE CROP ---
+            if FACE_UTILS_AVAILABLE:
+                boxes = get_face_boxes(image)
+                if boxes:
+                    # Crop the first face found
+                    image = crop_face_region(image, boxes[0])
+            # -----------------------
+            
             image = self.transform(image)
         except Exception as e:
             print(f"Error loading image {contrib.image_path}: {e}")
@@ -98,32 +116,27 @@ class ContributionDataset(Dataset):
 # ============================================================================
 def load_model_for_training():
     """Load the PatchBasedDetector model for fine-tuning."""
-    from transformers import AutoModelForImageClassification
+    # Import from backend
+    try:
+        from app.deepfake_model import PatchBasedDetector
+    except ImportError:
+        # Fallback if running from root
+        sys.path.append(os.path.join(os.path.dirname(__file__), "backend"))
+        from app.deepfake_model import PatchBasedDetector
     
-    MODEL_ID = "dima806/deepfake_vs_real_image_detection"
+    print(f"Loading PatchBasedDetector (ViT + Attention Pooling)")
+    model = PatchBasedDetector()
     
-    print(f"Loading base model: {MODEL_ID}")
-    model = AutoModelForImageClassification.from_pretrained(
-        MODEL_ID,
-        num_labels=2,
-    )
-    
-    # Freeze most layers, unfreeze classifier + last encoder layer
-    for param in model.parameters():
+    # Freeze backbone weights
+    for param in model.backbone.parameters():
         param.requires_grad = False
-    
-    # Unfreeze classifier
+        
+    # Unfreeze attention pooling and classifier
+    for param in model.attention_pool.parameters():
+        param.requires_grad = True
     for param in model.classifier.parameters():
         param.requires_grad = True
-    
-    # Unfreeze last encoder layer (better fine-tuning)
-    if hasattr(model, "vit") and hasattr(model.vit, "encoder"):
-        for param in model.vit.encoder.layer[-1].parameters():
-            param.requires_grad = True
-    elif hasattr(model, "base_model") and hasattr(model.base_model, "encoder"):
-        for param in model.base_model.encoder.layer[-1].parameters():
-            param.requires_grad = True
-    
+        
     return model
 
 
@@ -145,7 +158,14 @@ def train_epoch(model, dataloader, optimizer, criterion, device):
         
         # Forward pass
         outputs = model(images)
-        logits = outputs.logits if hasattr(outputs, "logits") else outputs
+        
+        # Handle dict output from PatchBasedDetector
+        if isinstance(outputs, dict):
+            logits = outputs["logits"]
+        elif hasattr(outputs, "logits"):
+            logits = outputs.logits
+        else:
+            logits = outputs
         
         loss = criterion(logits, labels)
         
@@ -176,7 +196,12 @@ def validate(model, dataloader, criterion, device):
             labels = labels.to(device)
             
             outputs = model(images)
-            logits = outputs.logits if hasattr(outputs, "logits") else outputs
+            if isinstance(outputs, dict):
+                logits = outputs["logits"]
+            elif hasattr(outputs, "logits"):
+                logits = outputs.logits
+            else:
+                logits = outputs
             
             loss = criterion(logits, labels)
             

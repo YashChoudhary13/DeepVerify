@@ -95,11 +95,12 @@ MODEL_REGISTRY: List[Dict[str, Any]] = [
         "version": "2.0"
     },
 
-    # Commented out Keras models for now (User Request)
-    # {"name": "MobileNetV2_Deepfake", "path": "mobilenetv2_deepfake.h5", "framework": "keras", "input_size": 224, "version": "1.0"},
-    # {"name": "EfficientNetB0_Deepfake", "path": "efficientnet_b0_deepfake.h5", "framework": "keras", "input_size": 224, "version": "1.0"},
-    # {"name": "Xception_Deepfake", "path": "xception_deepfake.h5", "framework": "keras", "input_size": 299, "version": "1.0"},
-    # {"name": "ResNet50_Deepfake", "path": "resnet50_deepfake.h5", "framework": "keras", "input_size": 224, "version": "1.0"},
+    # Keras models for visual breakdown (Heatmaps)
+    # NOTE: These are for display only. Final verdict relies on DeepVerify.
+    {"name": "MobileNetV2", "path": "mobilenetv2_deepfake.h5", "framework": "keras", "input_size": 224, "version": "1.0"},
+    {"name": "EfficientNetB0", "path": "efficientnet_b0_deepfake.h5", "framework": "keras", "input_size": 224, "version": "1.0"},
+    {"name": "Xception", "path": "xception_deepfake.h5", "framework": "keras", "input_size": 299, "version": "1.0"},
+    {"name": "ResNet50", "path": "resnet50_deepfake.h5", "framework": "keras", "input_size": 224, "version": "1.0"},
 ]
 
 # Lightweight cache to avoid reload
@@ -889,7 +890,52 @@ def _run_single_model(entry: Dict[str, Any], file_path: str, job_id: Optional[in
         try:
             print(f"[models_interface] Running Adaptive Analysis for {name}...")
             
-            # Step 1: Analyze metadata
+            # Step 1: Run Visual Model (ALWAYS) to get Heatmap
+            from .deepfake_model import create_detector, predict
+            
+            # Load or get cached detector
+            cache_key = "DeepVerify:patch_detector"
+            with _MODEL_CACHE_LOCK:
+                if cache_key in _MODEL_CACHE:
+                    detector = _MODEL_CACHE[cache_key]
+                else:
+                    detector = create_detector()
+                    detector.eval()
+                    _MODEL_CACHE[cache_key] = detector
+            
+            # Run visual prediction
+            vis_result = predict(detector, file_path, device="cpu")
+            detector_label = vis_result["label"]
+            
+            # Generate Heatmap from Attention Weights
+            heatmap_path = "N/A"
+            try:
+                att_weights = vis_result.get("attention_weights", [])
+                if att_weights and len(att_weights) == 4:
+                    # Reshape 4 weights into 2x2 grid
+                    att_grid = np.array(att_weights).reshape(2, 2).astype(np.float32)
+                    
+                    # Normalize to 0-1 for heatmap
+                    att_min, att_max = att_grid.min(), att_grid.max()
+                    if att_max > att_min:
+                        att_norm = (att_grid - att_min) / (att_max - att_min)
+                    else:
+                        att_norm = att_grid # Uniform attention
+                        
+                    # Overlay
+                    img_pil = Image.open(file_path).convert("RGB")
+                    heatmap_img = _overlay_heatmap_on_image(img_pil, att_norm, alpha=0.6)
+                    
+                    # Save
+                    fname = f"heatmap_{name}_{int(time.time()*1000)}_{os.getpid()}.png"
+                    heatpath = os.path.join(HEATMAP_DIR, fname)
+                    heatmap_img.save(heatpath, "PNG", optimize=True)
+                    heatmap_path = fname
+                    print(f"[models_interface] ✓ Attention heatmap generated: {heatmap_path}")
+            except Exception as h_err:
+                print(f"[models_interface] Heatmap generation failed: {h_err}")
+
+            # Step 2: Analyze metadata
             if not analyze_image_metadata_sync:
                 raise ImportError("metadata_analyzer module not found")
             
@@ -898,38 +944,18 @@ def _run_single_model(entry: Dict[str, Any], file_path: str, job_id: Optional[in
             is_stripped = any(ind.get("type") == "possible_metadata_stripping" for ind in indicators)
             is_ai = meta_res.get("is_ai_generated", False)
             
-            # Step 2: Route based on metadata availability
-            if is_stripped:
-                # Metadata stripped → Use visual AI analysis
-                print(f"[models_interface] Metadata stripped, falling back to visual AI analysis...")
-                
-                from .deepfake_model import create_detector, predict
-                
-                # Load or get cached detector
-                cache_key = "DeepVerify:patch_detector"
-                with _MODEL_CACHE_LOCK:
-                    if cache_key in _MODEL_CACHE:
-                        detector = _MODEL_CACHE[cache_key]
-                    else:
-                        detector = create_detector()
-                        detector.eval()
-                        _MODEL_CACHE[cache_key] = detector
-                
-                result = predict(detector, file_path, device="cpu")
-                
-                return {
-                    "name": name,
-                    "version": version,
-                    "confidence_real": result["confidence_real"],
-                    "confidence_fake": result["confidence_fake"],
-                    "label": result["label"],
-                    "time_ms": int((time.time() - t0) * 1000),
-                    "heatmap_path": "N/A",
-                    "analysis_mode": "visual_ai",
-                }
+            # Step 3: Route based on metadata availability
+            # FIX: If AI is detected (e.g. C2PA), use it even if EXIF is missing (stripped)
+            if is_stripped and not is_ai:
+                # Metadata stripped → Use visual AI scores
+                print(f"[models_interface] Metadata stripped, using visual analysis score...")
+                confidence_real = vis_result["confidence_real"]
+                confidence_fake = vis_result["confidence_fake"]
+                label = vis_result["label"]
+                mode = "visual_ai"
             else:
-                # Metadata exists → Use metadata result
-                print(f"[models_interface] Metadata found, using native analysis...")
+                # Metadata exists → Use metadata result for SCORE
+                print(f"[models_interface] Metadata found, using metadata score...")
                 
                 if is_ai:
                     confidence_raw = meta_res.get("confidence", 0.0)
@@ -937,20 +963,22 @@ def _run_single_model(entry: Dict[str, Any], file_path: str, job_id: Optional[in
                     confidence_real = 1.0 - confidence_fake
                     label = "fake"
                 else:
+                    # If metadata says authentic, we trust it high
                     confidence_real = 0.95
                     confidence_fake = 0.05
                     label = "real"
-                
-                return {
-                    "name": name,
-                    "version": version,
-                    "confidence_real": confidence_real,
-                    "confidence_fake": confidence_fake,
-                    "label": label,
-                    "time_ms": int((time.time() - t0) * 1000),
-                    "heatmap_path": "N/A",
-                    "analysis_mode": "metadata",
-                }
+                mode = "metadata"
+            
+            return {
+                "name": name,
+                "version": version,
+                "confidence_real": float(confidence_real),
+                "confidence_fake": float(confidence_fake),
+                "label": label,
+                "time_ms": int((time.time() - t0) * 1000),
+                "heatmap_path": heatmap_path,
+                "analysis_mode": mode,
+            }
                 
         except Exception as e:
             print(f"[models_interface] Error in adaptive analysis: {e}")
@@ -1392,6 +1420,7 @@ async def run_models_on_image(file_path: str, job_id: Optional[int] = None) -> D
                 # Skip failed models - don't add error results
 
     # consensus - only based on working model results
+    # consensus - only based on valid DeepVerify result
     try:
         if not results:
             consensus = {
@@ -1400,24 +1429,38 @@ async def run_models_on_image(file_path: str, job_id: Optional[int] = None) -> D
                 "explanation": ["No models were able to process the image"]
             }
         else:
-            labels = [r.get("label", "unknown") for r in results]
-            fake_count = labels.count("fake")
-            real_count = labels.count("real")
+            # STRICT LOGIC (User Request):
+            # 1. Find DeepVerify (Master Model)
+            # 2. Ignore all others for the "Final Decision", but keep them in 'results' for the UI breakdown.
             
-            if fake_count > real_count:
-                decision = "FAKE"
-                avg_conf = float(sum(r.get("confidence_fake", 0.5) for r in results) / len(results))
-            elif real_count > fake_count:
-                decision = "REAL"
-                avg_conf = float(sum(r.get("confidence_real", 0.5) for r in results) / len(results))
+            deepverify = next((r for r in results if r.get("name") == "DeepVerify"), None)
+            
+            if deepverify:
+                # Use DeepVerify's verdict explicitly
+                decision = deepverify.get("label", "unknown").upper()
+                
+                # Get the relevant confidence score based on the label
+                if decision == "FAKE":
+                    score = deepverify.get("confidence_fake", 0.0)
+                else:
+                    score = deepverify.get("confidence_real", 0.0)
+                
+                # Check if it used metadata
+                mode = deepverify.get("analysis_mode", "visual")
+                explanation = f"Verdict by DeepVerify ({mode} analysis)"
+                
             else:
-                decision = "UNCERTAIN"
-                avg_conf = 0.5
-            
+                # Fallback if DeepVerify crashed but others worked (unlikely)
+                # Just take the first available result
+                fallback = results[0]
+                decision = fallback.get("label", "unknown").upper()
+                score = fallback.get("confidence_fake", 0.0) if decision == "FAKE" else fallback.get("confidence_real", 0.0)
+                explanation = "DeepVerify unavailable, using fallback model"
+
             consensus = {
                 "decision": decision,
-                "score": avg_conf,
-                "explanation": [f"Analyzed by {len(results)} model(s)"]
+                "score": float(score),
+                "explanation": [explanation]
             }
     except Exception as e:
         print(f"[models_interface] Error calculating consensus: {str(e)}")
