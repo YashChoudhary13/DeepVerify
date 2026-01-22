@@ -1,10 +1,11 @@
 import os
 import sys
 import requests
-import time
 import uuid
 import random
 from datetime import datetime
+from concurrent.futures import ThreadPoolExecutor, as_completed
+from threading import Lock
 from dotenv import load_dotenv
 
 # Add backend to path to import app modules
@@ -19,110 +20,146 @@ from app.models import Contribution
 
 # Configuration
 DATA_DIR = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "data", "contributions"))
-# Default: 100 per class (200 total) if no arg provided
+
+# Parse command line arguments
 try:
     COUNT_PER_CLASS = int(sys.argv[1]) if len(sys.argv) > 1 else 100
 except ValueError:
     print("⚠️ Invalid number provided. Using default 100.")
     COUNT_PER_CLASS = 100
 
+# Threading configuration
+MAX_WORKERS = 10  # Number of parallel downloads (adjust based on your connection)
 USER_ID = 1  # Assign to first user (usually admin)
+
+# Thread-safe counters
+download_lock = Lock()
+success_count = {"fake": 0, "real": 0}
+fail_count = {"fake": 0, "real": 0}
+
 
 def setup_directories():
     os.makedirs(DATA_DIR, exist_ok=True)
 
-def download_file(url, label, source_type):
+
+def download_and_save(url, label, index, total):
+    """Download a single image and return the result."""
     try:
-        # Request with timeout and user agent
         headers = {'User-Agent': 'Mozilla/5.0 (DeepFakeDetector/1.0)'}
-        response = requests.get(url, headers=headers, timeout=10)
+        response = requests.get(url, headers=headers, timeout=15)
         
         if response.status_code == 200:
-            # Generate unique filename
             ext = ".jpg"
             image_id = uuid.uuid4().hex
             filename = f"{image_id}{ext}"
             save_path = os.path.join(DATA_DIR, filename)
             
-            # Save image
             with open(save_path, "wb") as f:
                 f.write(response.content)
             
-            return save_path
+            return {"success": True, "path": save_path, "label": label, "index": index}
     except Exception as e:
-        print(f"❌ Error downloading: {e}")
-    return None
+        pass  # Silently fail, will be counted
+    
+    return {"success": False, "path": None, "label": label, "index": index}
 
-def register_in_db(db, image_path, label):
+
+def register_batch_in_db(results):
+    """Register all successful downloads in the database."""
+    db = SessionLocal()
+    registered = 0
+    
     try:
-        # Check if file exists first
-        if not os.path.exists(image_path):
-            return False
-            
-        contrib = Contribution(
-            user_id=USER_ID,
-            image_path=image_path,
-            label=label,
-            source="auto_collection",
-            ai_tool_name="ThisPersonDoesNotExist" if label == "fake" else None,
-            description=f"Auto-collected {label} image",
-            verified=True  # Auto-verify since we know the source
-        )
-        db.add(contrib)
+        for result in results:
+            if result["success"] and result["path"] and os.path.exists(result["path"]):
+                contrib = Contribution(
+                    user_id=USER_ID,
+                    image_path=result["path"],
+                    label=result["label"],
+                    source="auto_collection",
+                    ai_tool_name="ThisPersonDoesNotExist" if result["label"] == "fake" else None,
+                    description=f"Auto-collected {result['label']} image",
+                    verified=True
+                )
+                db.add(contrib)
+                registered += 1
+        
         db.commit()
-        print(f"   └── Registered in DB (ID: {contrib.id})")
-        return True
     except Exception as e:
-        print(f"   └── ❌ DB Error: {e}")
+        print(f"❌ DB Error: {e}")
         db.rollback()
-        return False
+    finally:
+        db.close()
+    
+    return registered
+
+
+def fetch_images_parallel(label, count, url_generator):
+    """Fetch images in parallel using ThreadPoolExecutor."""
+    print(f"\n{'='*50}")
+    print(f"📥 Downloading {count} {label.upper()} images with {MAX_WORKERS} threads...")
+    print(f"{'='*50}")
+    
+    results = []
+    completed = 0
+    
+    with ThreadPoolExecutor(max_workers=MAX_WORKERS) as executor:
+        # Submit all download tasks
+        futures = {}
+        for i in range(count):
+            url = url_generator(i)
+            future = executor.submit(download_and_save, url, label, i, count)
+            futures[future] = i
+        
+        # Process completed downloads
+        for future in as_completed(futures):
+            result = future.result()
+            results.append(result)
+            completed += 1
+            
+            # Progress update every 10 downloads or at end
+            if completed % 10 == 0 or completed == count:
+                success = sum(1 for r in results if r["success"])
+                print(f"[{completed}/{count}] Downloaded: {success} ✅ | Failed: {completed - success} ❌")
+    
+    # Register successful downloads in DB
+    successful_results = [r for r in results if r["success"]]
+    registered = register_batch_in_db(successful_results)
+    
+    print(f"✅ {label.upper()}: {len(successful_results)} downloaded, {registered} registered in DB")
+    return len(successful_results)
+
 
 def main():
-    print("🚀 Starting Automated Data Collection...")
+    print("🚀 Starting FAST Automated Data Collection...")
     print(f"📂 Storage: {DATA_DIR}")
     print(f"🎯 Target: {COUNT_PER_CLASS} Real + {COUNT_PER_CLASS} Fake")
+    print(f"⚡ Threads: {MAX_WORKERS} parallel downloads")
     print("-" * 50)
     
     setup_directories()
-    db = SessionLocal()
     
-    # 1. Fetch FAKE images
-    print("\n[1/2] Fetching FAKE images (ThisPersonDoesNotExist)...")
-    for i in range(COUNT_PER_CLASS):
-        print(f"[{i+1}/{COUNT_PER_CLASS}] Downloading Fake...", end=" ", flush=True)
-        # Add random delay to be polite
-        time.sleep(1.0 + random.random()) 
-        
-        url = "https://thispersondoesnotexist.com/"  # Direct image
-        path = download_file(url, "fake", "ai_tool")
-        
-        if path:
-            print("✅ Saved.", end=" ")
-            register_in_db(db, path, "fake")
-        else:
-            print("❌ Failed.")
+    # URL generators
+    def fake_url_generator(i):
+        return "https://thispersondoesnotexist.com/"
+    
+    def real_url_generator(i):
+        rand = random.randint(1, 1000000)
+        return f"https://loremflickr.com/800/800/face,portrait/all?lock={rand}"
+    
+    # Fetch FAKE images
+    fake_success = fetch_images_parallel("fake", COUNT_PER_CLASS, fake_url_generator)
+    
+    # Fetch REAL images
+    real_success = fetch_images_parallel("real", COUNT_PER_CLASS, real_url_generator)
+    
+    print("\n" + "=" * 50)
+    print("✨ Collection Complete!")
+    print(f"   Fake: {fake_success}/{COUNT_PER_CLASS}")
+    print(f"   Real: {real_success}/{COUNT_PER_CLASS}")
+    print(f"   Total: {fake_success + real_success}/{COUNT_PER_CLASS * 2}")
+    print("\n💡 Run train_model.py to train on this data.")
 
-    # 2. Fetch REAL images
-    print("\n[2/2] Fetching REAL images (LoremFlickr Faces)...")
-    for i in range(COUNT_PER_CLASS):
-        print(f"[{i+1}/{COUNT_PER_CLASS}] Downloading Real...", end=" ", flush=True)
-        time.sleep(0.5)
-        
-        # LoremFlickr or similar
-        # Using a random lock to prevent caching same image
-        rand = random.randint(1, 100000)
-        url = f"https://loremflickr.com/800/800/face,portrait/all?lock={rand}"
-        path = download_file(url, "real", "camera")
-        
-        if path:
-            print("✅ Saved.", end=" ")
-            register_in_db(db, path, "real")
-        else:
-            print("❌ Failed.")
-            
-    db.close()
-    print("\n" + "="*50)
-    print("✨ Collection Complete! Run train_model.py to use this data.")
 
 if __name__ == "__main__":
     main()
