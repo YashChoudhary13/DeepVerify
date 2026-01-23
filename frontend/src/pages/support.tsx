@@ -5,8 +5,8 @@ import { serverSideTranslations } from "next-i18next/serverSideTranslations";
 import { useTranslation } from "next-i18next";
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
+import { buildApiUrl } from "@/lib/api";
 const Navbar = dynamic(() => import("@/components/Navbar"), { ssr: false });
-const API = process.env.NEXT_PUBLIC_API_URL || "";
 
 export async function getServerSideProps({ locale }: { locale: string }) {
   return {
@@ -33,7 +33,7 @@ export default function Support() {
 
     try {
       // Replace this URL with your backend support endpoint if you have one
-      const res = await fetch(`${API}/api/support`, {
+      const res = await fetch(buildApiUrl('/api/support'), {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ name, email, message }),

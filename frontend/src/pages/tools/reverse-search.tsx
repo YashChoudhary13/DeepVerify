@@ -8,7 +8,7 @@ import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Upload, Search, X, ArrowLeft, Loader2, ExternalLink } from "lucide-react";
 import { useRouter } from "next/router";
-import { getAuthToken } from "@/lib/api";
+import { getAuthToken, buildApiUrl } from "@/lib/api";
 
 const Navbar = dynamic(() => import("@/components/Navbar"), { ssr: false });
 
@@ -128,8 +128,7 @@ export default function ReverseImageSearch() {
       const formData = new FormData();
       formData.append("file", fileToUpload);
 
-      const API_BASE = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
-      const response = await fetch(`${API_BASE}/api/tools/reverse-image`, {
+      const response = await fetch(buildApiUrl('/api/tools/reverse-image'), {
         method: "POST",
         headers: {
           Authorization: `Bearer ${token}`,

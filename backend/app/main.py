@@ -622,25 +622,34 @@ def transform_job_for_frontend(job):
                 else result.confidence_real
             )
 
-            BASE_URL = os.getenv("BASE_URL", "http://localhost:8000")
+            # Return relative URL for heatmaps - frontend will use buildApiUrl()
             heatmap_url = None
             if result.heatmap_path and result.heatmap_path != "N/A":
                 # heatmap_path might be just filename or full path
                 fname = os.path.basename(result.heatmap_path) if os.path.sep in result.heatmap_path else result.heatmap_path
-                heatmap_file_path = os.path.join(HEATMAP_DIR, fname)
-                if os.path.exists(heatmap_file_path):
-                    heatmap_url = f"{BASE_URL}/api/heatmaps/{fname}"
+                # Check if heatmap exists (either in DB or on disk)
+                heatmap_exists = False
+                if getattr(result, "heatmap_data", None):
+                    heatmap_exists = True
+                else:
+                    heatmap_file_path = os.path.join(HEATMAP_DIR, fname)
+                    if os.path.exists(heatmap_file_path):
+                        heatmap_exists = True
+                
+                if heatmap_exists:
+                    heatmap_url = f"/api/heatmaps/{fname}"
 
 
+            # Return relative URL for images - frontend will use buildApiUrl()
             img_url = None
             # Prefer file path when available, otherwise use image_data stored in DB
             if job.file_path and os.path.exists(job.file_path):
                 fname = os.path.basename(job.file_path)
-                img_url = f"{BASE_URL}/api/uploads/{fname}"
+                img_url = f"/api/uploads/{fname}"
             elif getattr(job, "image_data", None):
                 # construct a filename from image_id (use .jpg by default)
                 fname = f"{getattr(job, 'image_id', 'image')}.jpg"
-                img_url = f"{BASE_URL}/api/uploads/{fname}"
+                img_url = f"/api/uploads/{fname}"
 
             models.append(
                 {

@@ -8,7 +8,7 @@ import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Upload, FileSearch, X, ArrowLeft, Loader2, Download } from "lucide-react";
 import { useRouter } from "next/router";
-import { getAuthToken } from "@/lib/api";
+import { getAuthToken, buildApiUrl } from "@/lib/api";
 
 const Navbar = dynamic(() => import("@/components/Navbar"), { ssr: false });
 
@@ -107,8 +107,7 @@ export default function MetadataAnalyzer() {
       const formData = new FormData();
       formData.append("file", file);
 
-      const API_BASE = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
-      const response = await fetch(`${API_BASE}/api/analyze/metadata`, {
+      const response = await fetch(buildApiUrl('/api/analyze/metadata'), {
         method: "POST",
         headers: {
           Authorization: `Bearer ${token}`,

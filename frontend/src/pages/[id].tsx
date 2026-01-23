@@ -56,8 +56,7 @@ export default function ResultPage() {
 
     setIsRerunning(true);
     try {
-      const API_BASE = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
-      const response = await fetch(`${API_BASE}/api/jobs/${id}/rerun`, {
+      const response = await fetch(buildApiUrl(`/api/jobs/${id}/rerun`), {
         method: "POST",
         headers: {
           "Content-Type": "application/json",

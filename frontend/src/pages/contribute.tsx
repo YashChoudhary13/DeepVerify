@@ -14,7 +14,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Upload, CheckCircle2, AlertCircle, Sparkles, Camera, Download, Bot, HelpCircle } from "lucide-react";
-import { getAuthToken, getCurrentUser } from "@/lib/api";
+import { getAuthToken, getCurrentUser, buildApiUrl } from "@/lib/api";
 
 const AI_TOOLS = [
     "DALL-E / ChatGPT",
@@ -67,7 +67,7 @@ export default function ContributePage() {
     const fetchStats = async () => {
         try {
             const token = getAuthToken();
-            const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000"}/api/contributions/stats`, {
+            const res = await fetch(buildApiUrl('/api/contributions/stats'), {
                 headers: { Authorization: `Bearer ${token}` },
             });
             if (res.ok) {
@@ -122,7 +122,7 @@ export default function ContributePage() {
             if (aiToolName) formData.append("ai_tool_name", aiToolName);
             if (description) formData.append("description", description);
 
-            const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000"}/api/contribute`, {
+            const res = await fetch(buildApiUrl('/api/contribute'), {
                 method: "POST",
                 headers: { Authorization: `Bearer ${token}` },
                 body: formData,
