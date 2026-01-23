@@ -42,12 +42,7 @@ from .schemas_auth import UserCreate, UserResponse, Token, LoginRequest, UserUpd
 from .support import router as support_router
 from .payments import router as payments_router
 
-# Initialize models at startup
-try:
-    from .models_interface import initialize_models
-    initialize_models()
-except Exception as e:
-    print(f"Warning: Could not initialize models: {e}")
+# Models will be initialized in startup event after download
 
 
 # -------------------------------------
@@ -123,6 +118,12 @@ async def startup_cleanup():
         # Download models if needed (Railway deployment)
         logger.info("Checking models...")
         download_all_models()
+        
+        # Initialize models AFTER download
+        logger.info("Initializing models...")
+        from .models_interface import initialize_models
+        initialize_models()
+        logger.info("Models initialized successfully")
         
         # Cleanup old files
         logger.info("Running startup cleanup...")
