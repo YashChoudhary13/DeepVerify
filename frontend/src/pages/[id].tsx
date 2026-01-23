@@ -5,7 +5,7 @@ import { useTranslation } from "next-i18next";
 import ConsensusCard from "../../src/components/ConsensusCard";
 import ModelResultCard from "../../src/components/ModelResultCard";
 import useSWR from "swr";
-import { fetcher, getAuthHeaders } from "@/lib/api";
+import { fetcher, getAuthHeaders, buildApiUrl } from "@/lib/api";
 import { useRouter } from "next/router";
 import { Card } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";

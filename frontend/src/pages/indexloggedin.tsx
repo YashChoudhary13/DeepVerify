@@ -8,7 +8,7 @@ import FeatureCard from "@/components/FeatureCard";
 import { Button } from "@/components/ui/button";
 import { Layers, Flame, Zap, Shield, Lock, FileDown, Sparkles } from "lucide-react";
 import useSWR from "swr";
-import { fetcher, getAuthHeaders } from "@/lib/api";
+import { fetcher, getAuthHeaders, buildApiUrl } from "@/lib/api";
 import type { DashboardJob } from "@/types";
 import { useRouter } from "next/router";
 
