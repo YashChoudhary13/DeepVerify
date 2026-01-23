@@ -105,8 +105,8 @@ if (job.image?.thumbnail_url) {
     const resolveUrl = (u: string) => {
       if (!u) return u;
       if (u.startsWith("http")) return u;
-      // If url is an API path (starts with /api/) prefix with API base
-      if (u.startsWith("/api/")) return `${process.env.NEXT_PUBLIC_API_URL}${u}`;
+      // If url is an API path (starts with /api/) use buildApiUrl helper
+      if (u.startsWith("/api/")) return buildApiUrl(u);
       // Otherwise treat as frontend public asset path
       return u;
     };
@@ -268,9 +268,7 @@ if (job.image?.thumbnail_url) {
                 job.image?.thumbnail_url
                   ? (job.image.thumbnail_url.startsWith("http")
                       ? job.image.thumbnail_url
-                      : job.image.thumbnail_url.startsWith("/api/")
-                        ? `${process.env.NEXT_PUBLIC_API_URL}${job.image.thumbnail_url}`
-                        : job.image.thumbnail_url)
+                      : buildApiUrl(job.image.thumbnail_url))
                   : undefined
               }
             />
@@ -299,9 +297,7 @@ if (job.image?.thumbnail_url) {
                   job.image?.thumbnail_url
                     ? (job.image.thumbnail_url.startsWith("http")
                         ? job.image.thumbnail_url
-                        : job.image.thumbnail_url.startsWith("/api/")
-                          ? `${process.env.NEXT_PUBLIC_API_URL}${job.image.thumbnail_url}`
-                          : job.image.thumbnail_url)
+                        : buildApiUrl(job.image.thumbnail_url))
                     : undefined
                 }
                 alt={t("result.analyzedImage")}

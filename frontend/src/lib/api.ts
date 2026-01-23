@@ -8,6 +8,20 @@
 const rawApiUrl = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
 export const API_BASE = rawApiUrl.replace(/\/+$/, ''); // Remove trailing slashes
 
+/**
+ * Safely construct a full URL from API_BASE and a path
+ * Handles leading/trailing slashes to prevent double slashes
+ */
+export function buildApiUrl(path: string): string {
+  if (!path) return API_BASE;
+  if (path.startsWith('http://') || path.startsWith('https://')) {
+    return path; // Already a full URL
+  }
+  // Remove leading slashes from path and ensure single slash between base and path
+  const cleanPath = path.replace(/^\/+/, '');
+  return `${API_BASE}/${cleanPath}`;
+}
+
 /* --------------------------------------------
    AUTHENTICATION HELPERS
 ---------------------------------------------*/

@@ -1,5 +1,6 @@
 // src/components/ModelResultCard.tsx
 import React, { useState } from "react";
+import { buildApiUrl } from "@/lib/api";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
@@ -85,9 +86,7 @@ export default function ModelResultCard({ model }: ModelProps) {
                     model.image_url
                       ? (model.image_url.startsWith("http")
                           ? model.image_url
-                          : model.image_url.startsWith("/api/")
-                            ? `${process.env.NEXT_PUBLIC_API_URL}${model.image_url}`
-                            : model.image_url)
+                          : buildApiUrl(model.image_url))
                       : "/sample-thumbnails/placeholder.png"
                   }
                   alt="Original"
@@ -97,9 +96,7 @@ export default function ModelResultCard({ model }: ModelProps) {
                   src={
                     model.heatmap_url.startsWith("http")
                       ? model.heatmap_url
-                      : model.heatmap_url.startsWith("/api/")
-                        ? `${process.env.NEXT_PUBLIC_API_URL}${model.heatmap_url}`
-                        : model.heatmap_url
+                      : buildApiUrl(model.heatmap_url)
                   }
                   alt="Heatmap overlay"
                   className="absolute inset-0 w-full h-48 object-contain mix-blend-multiply dark:mix-blend-screen"

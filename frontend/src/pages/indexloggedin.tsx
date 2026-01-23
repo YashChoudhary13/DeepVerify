@@ -194,7 +194,7 @@ export default function LoggedInHome() {
                           <div className="w-12 h-12 rounded overflow-hidden flex-shrink-0 bg-muted">
                             {job.image?.thumbnail_url && (
                               <img
-                                src={`${process.env.NEXT_PUBLIC_API_URL}${job.image.thumbnail_url}`}
+                                src={buildApiUrl(job.image.thumbnail_url)}
                                 className="w-full h-full object-cover"
                                 alt="analysis thumbnail"
                               />
