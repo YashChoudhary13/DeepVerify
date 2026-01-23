@@ -17,6 +17,8 @@ import os
 import uuid
 from dotenv import load_dotenv
 import shutil
+import boto3
+from botocore.exceptions import ClientError
 
 load_dotenv()
 
@@ -53,6 +55,82 @@ except Exception as e:
 # -------------------------------------
 Base.metadata.create_all(bind=engine)
 app = FastAPI(title="DeepVerify API")
+
+# Health check endpoint for deployment monitoring
+@app.get("/health")
+def health_check():
+    """Health check endpoint for load balancers and monitoring."""
+    from datetime import datetime
+    return {
+        "status": "healthy",
+        "timestamp": datetime.now().isoformat(),
+        "service": "DeepVerify API"
+    }
+
+@app.get("/api/admin/storage-info")
+def get_storage_info():
+    """Get storage usage information (admin only)."""
+    from .storage import StorageManager
+    backend_dir = os.path.dirname(os.path.dirname(__file__))
+    
+    info = {
+        "uploads": StorageManager(
+            os.path.join(backend_dir, "..", "data", "uploads")
+        ).get_storage_info(),
+        "heatmaps": StorageManager(
+            os.path.join(backend_dir, "..", "data", "heatmaps")
+        ).get_storage_info(),
+        "reverse_images": StorageManager(
+            os.path.join(backend_dir, "..", "data", "reverse-images")
+        ).get_storage_info(),
+    }
+    
+    total_size_gb = sum(d["total_size_gb"] for d in info.values())
+    total_files = sum(d["file_count"] for d in info.values())
+    
+    return {
+        "directories": info,
+        "total": {
+            "file_count": total_files,
+            "total_size_gb": round(total_size_gb, 2),
+            "total_size_mb": round(total_size_gb * 1024, 2),
+        }
+    }
+
+@app.post("/api/admin/cleanup")
+def trigger_cleanup():
+    """Manually trigger cleanup of old files (admin only)."""
+    from .storage import cleanup_all_temp_directories
+    deleted, freed = cleanup_all_temp_directories()
+    return {
+        "success": True,
+        "files_deleted": deleted,
+        "space_freed_mb": round(freed / 1024 / 1024, 2),
+        "space_freed_gb": round(freed / 1024 / 1024 / 1024, 2),
+    }
+
+# Startup event: cleanup old temporary files
+@app.on_event("startup")
+async def startup_cleanup():
+    """Run cleanup on startup to free space."""
+    try:
+        from .storage import cleanup_all_temp_directories
+        from .download_models import download_all_models
+        import logging
+        logging.basicConfig(level=logging.INFO)
+        logger = logging.getLogger(__name__)
+        
+        # Download models if needed (Railway deployment)
+        logger.info("Checking models...")
+        download_all_models()
+        
+        # Cleanup old files
+        logger.info("Running startup cleanup...")
+        deleted, freed = cleanup_all_temp_directories()
+        logger.info(f"Startup cleanup complete: {deleted} files, {freed / 1024 / 1024:.2f} MB")
+    except Exception as e:
+        import logging
+        logging.error(f"Startup tasks failed: {e}")
 
 
 # -------------------------------------
@@ -379,7 +457,7 @@ async def upload_reverse_image(
     current_user: User = Depends(get_current_active_user),
 ):
     """
-    Upload an image for reverse image search.
+    Upload an image for reverse image search to Cloudflare R2.
     Returns a publicly accessible image URL.
     """
     try:
@@ -398,21 +476,67 @@ async def upload_reverse_image(
         # Generate unique filename
         unique_id = str(uuid.uuid4())
         filename = f"{unique_id}.jpg"
-        filepath = os.path.join(REVERSE_IMAGE_DIR, filename)
         
-        # Save file to disk
-        with open(filepath, "wb") as f:
-            f.write(content)
+        # Check if R2 is configured
+        r2_account_id = os.getenv("R2_ACCOUNT_ID")
+        r2_access_key = os.getenv("R2_ACCESS_KEY_ID")
+        r2_secret_key = os.getenv("R2_SECRET_ACCESS_KEY")
+        r2_bucket = os.getenv("R2_BUCKET_NAME")
+        r2_public_url = os.getenv("R2_PUBLIC_URL")
         
-        # Determine the base URL (from environment or default to localhost)
-        base_url = os.getenv("BACKEND_URL", "http://localhost:8000")
-        image_url = f"{base_url}/public/reverse-images/{filename}"
-        
-        return {
-            "success": True,
-            "imageUrl": image_url,
-            "filename": filename,
-        }
+        if all([r2_account_id, r2_access_key, r2_secret_key, r2_bucket, r2_public_url]):
+            # Upload to Cloudflare R2
+            try:
+                s3_client = boto3.client(
+                    's3',
+                    endpoint_url=f'https://{r2_account_id}.r2.cloudflarestorage.com',
+                    aws_access_key_id=r2_access_key,
+                    aws_secret_access_key=r2_secret_key,
+                    region_name='auto'
+                )
+                
+                # Upload the file
+                s3_client.put_object(
+                    Bucket=r2_bucket,
+                    Key=f"reverse-images/{filename}",
+                    Body=content,
+                    ContentType=file.content_type,
+                )
+                
+                # Construct public URL
+                image_url = f"{r2_public_url}/reverse-images/{filename}"
+                
+                return {
+                    "success": True,
+                    "imageUrl": image_url,
+                    "filename": filename,
+                    "storage": "r2"
+                }
+                
+            except ClientError as e:
+                print(f"R2 upload failed: {e}")
+                raise HTTPException(
+                    status_code=500,
+                    detail=f"Failed to upload to R2: {str(e)}"
+                )
+        else:
+            # Fallback to local storage if R2 not configured
+            filepath = os.path.join(REVERSE_IMAGE_DIR, filename)
+            
+            # Save file to disk
+            with open(filepath, "wb") as f:
+                f.write(content)
+            
+            # Use local URL
+            base_url = os.getenv("BACKEND_URL", "http://localhost:8000")
+            image_url = f"{base_url}/public/reverse-images/{filename}"
+            
+            return {
+                "success": True,
+                "imageUrl": image_url,
+                "filename": filename,
+                "storage": "local"
+            }
         
     except HTTPException:
         raise

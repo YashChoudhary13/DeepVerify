@@ -30,12 +30,47 @@ export default function ReverseImageSearch() {
   const fileInputRef = useRef<HTMLInputElement | null>(null);
   const [imageUrl, setImageUrl] = useState<string | null>(null);
   const [searchInProgress, setSearchInProgress] = useState(false);
+  const [isPublicUrl, setIsPublicUrl] = useState(false);
+  const [verifyingImage, setVerifyingImage] = useState(false);
+  const [imageAccessible, setImageAccessible] = useState(false);
 
   const validate = (f: File) => {
     const allowed = ["image/jpeg", "image/png", "image/jpg"];
     if (!allowed.includes(f.type)) return "Only JPEG and PNG allowed";
     if (f.size > 10_000_000) return "Max file size is 10MB";
     return null;
+  };
+
+  const verifyImageAccessibility = async (url: string) => {
+    // Try to verify the image is accessible by checking if it loads
+    return new Promise((resolve, reject) => {
+      const img = new Image();
+      const timeout = setTimeout(() => {
+        img.src = '';
+        setImageAccessible(false);
+        setError("Image uploaded but verification timed out. The image may still be processing on the server.");
+        reject(new Error('Timeout'));
+      }, 15000); // 15 second timeout
+
+      img.onload = () => {
+        clearTimeout(timeout);
+        setImageAccessible(true);
+        setError(null);
+        console.log('✅ Image is accessible and ready for reverse search');
+        resolve(true);
+      };
+
+      img.onerror = () => {
+        clearTimeout(timeout);
+        setImageAccessible(false);
+        setError("Image uploaded but not accessible yet. Please wait a moment and try refreshing, or check your backend URL configuration.");
+        console.error('❌ Image failed to load from URL');
+        reject(new Error('Image not accessible'));
+      };
+
+      // Add timestamp to bypass cache
+      img.src = url + (url.includes('?') ? '&' : '?') + '_t=' + Date.now();
+    });
   };
 
   const onFileChange = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
@@ -108,7 +143,32 @@ export default function ReverseImageSearch() {
       }
 
       const data = await response.json();
-      setImageUrl(data.imageUrl);
+      const url = data.imageUrl;
+      setImageUrl(url);
+      
+      // Check if URL is publicly accessible (not localhost or local IP)
+      const isPublic = !url.includes('localhost') && 
+                       !url.includes('127.0.0.1') && 
+                       !url.startsWith('http://192.168.') &&
+                       !url.startsWith('http://10.') &&
+                       !url.startsWith('http://172.') &&
+                       (url.startsWith('https://') || url.startsWith('http://'));
+      setIsPublicUrl(isPublic);
+      
+      console.log('Image URL:', url);
+      console.log('Is Public URL:', isPublic);
+      
+      // Verify the image is actually accessible
+      if (isPublic) {
+        setVerifyingImage(true);
+        try {
+          await verifyImageAccessibility(url);
+        } catch (verifyErr) {
+          console.error('Image verification failed:', verifyErr);
+        } finally {
+          setVerifyingImage(false);
+        }
+      }
     } catch (err: any) {
       setError(err.message || "Failed to upload image");
       setFile(null);
@@ -117,7 +177,11 @@ export default function ReverseImageSearch() {
     }
   };
 
-  const searchOnGoogle = () => {
+  const searchOnGoogle = async () => {
+    if (!file) return;
+    
+    // Google Lens doesn't accept direct URLs, so we open their upload page
+    // User will need to manually upload the image there
     window.open("https://lens.google.com/", "_blank");
   };
 
@@ -149,10 +213,13 @@ export default function ReverseImageSearch() {
   };
 
   const reset = () => {
+    setIsPublicUrl(false);
     setFile(null);
     setImageUrl(null);
     setError(null);
     setSearchInProgress(false);
+    setVerifyingImage(false);
+    setImageAccessible(false);
     if (fileInputRef.current) {
       fileInputRef.current.value = "";
     }
@@ -294,53 +361,129 @@ export default function ReverseImageSearch() {
                           <p className="text-sm text-muted-foreground">Uploading image...</p>
                         </div>
                       )}
+
+                      {verifyingImage && (
+                        <div className="flex items-center justify-center py-6 bg-blue-50 dark:bg-blue-950/30 rounded-lg mt-4">
+                          <Loader2 className="h-6 w-6 animate-spin text-blue-600 mr-2" />
+                          <p className="text-sm text-blue-700 dark:text-blue-300">Verifying image accessibility...</p>
+                        </div>
+                      )}
                     </div>
 
                     {/* Search Buttons */}
                     {imageUrl && !loading && (
                       <div className="space-y-3">
                         <h3 className="font-semibold text-lg">Reverse Search:</h3>
+                        
+                        {!isPublicUrl && (
+                          <div className="p-4 bg-amber-50 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-900 rounded-lg">
+                            <p className="text-sm text-amber-900 dark:text-amber-300">
+                              <strong>⚠️ Local URL Detected:</strong> These search engines cannot access localhost URLs. 
+                              To use reverse image search, your backend must be publicly accessible (deployed with a public domain) 
+                              or use a service like ngrok to expose your local server temporarily.
+                            </p>
+                          </div>
+                        )}
+
+                        {isPublicUrl && !imageAccessible && !verifyingImage && (
+                          <div className="p-4 bg-amber-50 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-900 rounded-lg">
+                            <p className="text-sm text-amber-900 dark:text-amber-300">
+                              <strong>⚠️ Image Not Verified:</strong> The image URL could not be verified. 
+                              The buttons below may not work if the image isn't publicly accessible. 
+                              Check your BACKEND_URL configuration and ensure the image is properly uploaded to your storage.
+                            </p>
+                          </div>
+                        )}
 
                         <Button
-                          onClick={searchOnBing}
-                          disabled={!imageUrl || searchInProgress}
+                          onClick={searchOnGoogle}
                           className="w-full gap-2 h-11"
                           variant="outline"
                         >
                           <ExternalLink className="h-4 w-4" />
-                          Search on Bing
+                          Search on Google Lens (Manual Upload)
                           <ExternalLink className="h-4 w-4 ml-auto" />
+                        </Button>
+
+                        <Button
+                          onClick={searchOnBing}
+                          disabled={!imageUrl || searchInProgress || !isPublicUrl || verifyingImage}
+                          className="w-full gap-2 h-11"
+                          variant="outline"
+                        >
+                          {verifyingImage ? (
+                            <>
+                              <Loader2 className="h-4 w-4 animate-spin" />
+                              Verifying...
+                            </>
+                          ) : (
+                            <>
+                              <ExternalLink className="h-4 w-4" />
+                              Search on Bing
+                              <ExternalLink className="h-4 w-4 ml-auto" />
+                            </>
+                          )}
                         </Button>
 
                         <Button
                           onClick={searchOnYandex}
-                          disabled={!imageUrl || searchInProgress}
+                          disabled={!imageUrl || searchInProgress || !isPublicUrl || verifyingImage}
                           className="w-full gap-2 h-11"
                           variant="outline"
                         >
-                          <ExternalLink className="h-4 w-4" />
-                          Search on Yandex
-                          <ExternalLink className="h-4 w-4 ml-auto" />
+                          {verifyingImage ? (
+                            <>
+                              <Loader2 className="h-4 w-4 animate-spin" />
+                              Verifying...
+                            </>
+                          ) : (
+                            <>
+                              <ExternalLink className="h-4 w-4" />
+                              Search on Yandex
+                              <ExternalLink className="h-4 w-4 ml-auto" />
+                            </>
+                          )}
                         </Button>
 
                         <Button
                           onClick={searchOnTinEye}
-                          disabled={!imageUrl || searchInProgress}
+                          disabled={!imageUrl || searchInProgress || !isPublicUrl || verifyingImage}
                           className="w-full gap-2 h-11"
                           variant="outline"
                         >
-                          <ExternalLink className="h-4 w-4" />
-                          Search on TinEye
-                          <ExternalLink className="h-4 w-4 ml-auto" />
+                          {verifyingImage ? (
+                            <>
+                              <Loader2 className="h-4 w-4 animate-spin" />
+                              Verifying...
+                            </>
+                          ) : (
+                            <>
+                              <ExternalLink className="h-4 w-4" />
+                              Search on TinEye
+                              <ExternalLink className="h-4 w-4 ml-auto" />
+                            </>
+                          )}
                         </Button>
                       </div>
                     )}
 
                     {/* Helper Text */}
                     <div className="p-4 bg-blue-50 dark:bg-blue-950/30 border border-blue-200 dark:border-blue-900 rounded-lg">
-                      <p className="text-sm text-blue-900 dark:text-blue-300">
-                        <strong>Note:</strong> Your image is temporarily hosted to enable one-click reverse image search.
-                      </p>
+                      <div className="text-sm text-blue-900 dark:text-blue-300 space-y-2">
+                        <p><strong>Note:</strong> Your image is temporarily hosted to enable reverse image search.</p>
+                        {verifyingImage ? (
+                          <p className="flex items-center gap-2">
+                            <Loader2 className="h-3 w-3 animate-spin" />
+                            Verifying image accessibility...
+                          </p>
+                        ) : imageAccessible && isPublicUrl ? (
+                          <p>✅ Image URL is publicly accessible and verified - ready for reverse search!</p>
+                        ) : isPublicUrl && !imageAccessible ? (
+                          <p>⚠️ Image URL is public but couldn't be verified. The reverse search may not work properly.</p>
+                        ) : (
+                          <p>⚠️ Image URL is local-only. For full functionality, deploy your backend with a public URL.</p>
+                        )}
+                      </div>
                     </div>
 
                     {error && (

@@ -35,10 +35,19 @@ export default function Membership() {
   const startCheckout = useCallback(async (plan: "pro_monthly" | "pro_yearly") => {
     try {
       setLoadingPlan(plan);
-      const res = await fetch(`${API}/create-checkout-session`, {
+      
+      if (!user?.email) {
+        alert("Please log in to purchase a membership.");
+        return;
+      }
+      
+      const res = await fetch(`${API}/api/create-checkout-session`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ plan }),
+        body: JSON.stringify({ 
+          plan,
+          user_email: user.email 
+        }),
       });
 
       if (!res.ok) {
@@ -55,7 +64,7 @@ export default function Membership() {
     } finally {
       setLoadingPlan(null);
     }
-  }, []);
+  }, [user]);
 
   const isPro = user?.membership_status === "Pro";
 

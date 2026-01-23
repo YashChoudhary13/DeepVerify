@@ -24,3 +24,4 @@ piexif
 tqdm
 facenet-pytorch
 reportlab
+boto3

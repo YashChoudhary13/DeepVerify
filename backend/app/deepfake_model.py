@@ -144,7 +144,7 @@ class PatchBasedDetector(nn.Module):
         B, P, C, H, W = x.shape
         
         # Flatten batch and patch dimensions for backbone processing
-        x_flat = x.view(B * P, C, H, W)
+        x_flat = x.reshape(B * P, C, H, W)
         
         # Resize patches to 224x224 if they are smaller (ViT expects 224)
         if H != 224 or W != 224:
@@ -162,7 +162,7 @@ class PatchBasedDetector(nn.Module):
         features = outputs.last_hidden_state[:, 0]  # (B*P, hidden_size)
         
         # Reshape back to (batch, patches, features)
-        features = features.view(B, P, -1)
+        features = features.reshape(B, P, -1)
         
         # Attention pooling across patches
         pooled_features, attention_weights = self.attention_pool(features)

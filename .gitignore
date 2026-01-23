@@ -7,10 +7,10 @@ __pycache__/
 *.egg-info/
 dist/
 build/
-venv/
+venv_cuda/
 env/
 ENV/
-.venv
+.venv_cuda
 
 # Node.js
 node_modules/

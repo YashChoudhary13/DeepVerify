@@ -29,8 +29,8 @@ except ValueError:
     COUNT_PER_CLASS = 100
 
 # Threading configuration
-MAX_WORKERS = 5  # Number of parallel downloads (adjust based on your connection)
-USER_ID = 1  # Assign to first user (usually admin)
+MAX_WORKERS = 10 
+USER_ID = 1 
 
 # Thread-safe counters
 download_lock = Lock()
@@ -131,33 +131,25 @@ def fetch_images_parallel(label, count, url_generator):
 
 
 def main():
-    print("🚀 Starting FAST Automated Data Collection...")
+    print("🚀 Starting Automated Data Collection (REAL IMAGES ONLY)...")
     print(f"📂 Storage: {DATA_DIR}")
-    print(f"🎯 Target: {COUNT_PER_CLASS} Real + {COUNT_PER_CLASS} Fake")
+    print(f"🎯 Target: {COUNT_PER_CLASS} Real Images")
     print(f"⚡ Threads: {MAX_WORKERS} parallel downloads")
     print("-" * 50)
     
     setup_directories()
     
-    # URL generators
-    def fake_url_generator(i):
-        return "https://thispersondoesnotexist.com/"
-    
     def real_url_generator(i):
+        # Using a random lock to prevent caching same image
         rand = random.randint(1, 1000000)
         return f"https://loremflickr.com/800/800/face,portrait/all?lock={rand}"
     
-    # Fetch FAKE images
-    fake_success = fetch_images_parallel("fake", COUNT_PER_CLASS, fake_url_generator)
-    
-    # Fetch REAL images
+    # Fetch REAL images ONLY
     real_success = fetch_images_parallel("real", COUNT_PER_CLASS, real_url_generator)
     
     print("\n" + "=" * 50)
     print("✨ Collection Complete!")
-    print(f"   Fake: {fake_success}/{COUNT_PER_CLASS}")
     print(f"   Real: {real_success}/{COUNT_PER_CLASS}")
-    print(f"   Total: {fake_success + real_success}/{COUNT_PER_CLASS * 2}")
     print("\n💡 Run train_model.py to train on this data.")
 
 
