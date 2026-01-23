@@ -4,7 +4,9 @@
 
 // If NEXT_PUBLIC_API_URL is set → use real backend.
 // Otherwise default to http://localhost:8000 for dev.
-export const API_BASE = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
+// Remove trailing slash to prevent double slashes in URLs
+const rawApiUrl = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
+export const API_BASE = rawApiUrl.replace(/\/+$/, ''); // Remove trailing slashes
 
 /* --------------------------------------------
    AUTHENTICATION HELPERS
