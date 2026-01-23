@@ -24,6 +24,8 @@ export default function Dashboard() {
   const { t } = useTranslation("common");
   const { data, error } = useSWR("/api/dashboard", fetcher, {
     fallbackData: [],
+    revalidateOnFocus: false,
+    dedupingInterval: 10000, // Dedupe requests within 10 seconds
   });
 
   const items = data || [];

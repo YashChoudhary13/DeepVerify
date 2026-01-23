@@ -90,3 +90,8 @@ def delete_job_results(job_id: int, db: Session):
     deleted = db.query(models.ModelResult).filter(models.ModelResult.job_id == job_id).delete()
     db.commit()
     return deleted
+
+
+def get_user_by_email(db: Session, email: str):
+    """Get user by email address"""
+    return db.query(models.User).filter(models.User.email == email).first()

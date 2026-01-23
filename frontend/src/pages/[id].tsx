@@ -1,4 +1,5 @@
 import Head from "next/head";
+import Link from "next/link";
 import dynamic from "next/dynamic";
 import { serverSideTranslations } from "next-i18next/serverSideTranslations";
 import { useTranslation } from "next-i18next";
@@ -11,7 +12,7 @@ import { Card } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { RefreshCw, Download, Loader2 } from "lucide-react";
+import { Loader2, RefreshCw, Download, ArrowLeft, Upload } from "lucide-react";
 import { useState } from "react";
 import jsPDF from "jspdf";
 import autoTable from "jspdf-autotable";
@@ -307,6 +308,13 @@ if (job.image?.thumbnail_url) {
 
             {/* Buttons */}
             <div className="space-y-3">
+              <Button asChild className="w-full">
+                <Link href="/indexloggedin">
+                  <Upload className="h-4 w-4 mr-2" />
+                  {t("result.newAnalysis", "New Analysis")}
+                </Link>
+              </Button>
+              
               <Button
                 variant="outline"
                 className="w-full"

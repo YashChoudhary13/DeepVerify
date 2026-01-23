@@ -54,7 +54,7 @@ async def create_checkout_session(payload: CreateCheckoutRequest, db: Session = 
                     "quantity": 1,
                 }
             ],
-            success_url=os.getenv("FRONTEND_URL", "http://localhost:3000") + "/?checkout=success",
+            success_url=os.getenv("FRONTEND_URL", "http://localhost:3000") + "/indexloggedin?checkout=success",
             cancel_url=os.getenv("FRONTEND_URL", "http://localhost:3000") + "/membership?checkout=cancel",
             customer_email=payload.user_email,
             metadata={"plan": plan, "user_email": payload.user_email},

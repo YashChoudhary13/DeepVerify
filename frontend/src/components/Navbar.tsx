@@ -18,8 +18,15 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import {
+  Sheet,
+  SheetContent,
+  SheetHeader,
+  SheetTitle,
+  SheetTrigger,
+} from "@/components/ui/sheet";
 
-import { Shield, LogOut, LayoutDashboard, Globe, Check, User as UserIcon, Settings, Sparkles } from "lucide-react";
+import { Shield, LogOut, LayoutDashboard, Globe, Check, User as UserIcon, Settings, Sparkles, Menu } from "lucide-react";
 import { ModeToggle } from "./mode-toggle";
 
 const LANGUAGES = [
@@ -208,7 +215,8 @@ export default function Navbar() {
           <span className="text-xl font-bold tracking-tight">DeepVerify</span>
         </AnimatedLink>
 
-        <div className="flex items-center gap-4">
+        {/* Desktop Navigation */}
+        <div className="hidden lg:flex items-center gap-4">
           {/* Language Selector Dropdown */}
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
@@ -312,6 +320,124 @@ export default function Navbar() {
               </Button>
             </>
           )}
+        </div>
+
+        {/* Mobile Navigation */}
+        <div className="flex lg:hidden items-center gap-2">
+          <ModeToggle />
+          
+          <Sheet>
+            <SheetTrigger asChild>
+              <Button variant="ghost" size="icon">
+                <Menu className="h-6 w-6" />
+              </Button>
+            </SheetTrigger>
+            <SheetContent side="right" className="w-[300px] sm:w-[400px]">
+              <SheetHeader>
+                <SheetTitle className="flex items-center gap-2">
+                  <Shield className="h-5 w-5 text-primary" />
+                  DeepVerify
+                </SheetTitle>
+              </SheetHeader>
+              
+              <div className="mt-6 flex flex-col gap-4">
+                {signedIn ? (
+                  <>
+                    {/* User Info */}
+                    <div className="flex items-center gap-3 pb-4 border-b">
+                      <Avatar className="h-12 w-12">
+                        <AvatarImage src={user?.profileImageUrl || ""} alt={displayName} />
+                        <AvatarFallback>{displayName.charAt(0).toUpperCase()}</AvatarFallback>
+                      </Avatar>
+                      <div className="flex flex-col">
+                        <p className="font-medium">{displayName}</p>
+                        <p className="text-sm text-muted-foreground truncate">
+                          {user?.email}
+                        </p>
+                      </div>
+                    </div>
+
+                    {/* Navigation Links */}
+                    <Link href="/indexloggedin" className="flex items-center gap-3 p-3 rounded-lg hover:bg-accent">
+                      <LayoutDashboard className="h-5 w-5" />
+                      <span className="font-medium">{t("navbar.upload", "Upload")}</span>
+                    </Link>
+
+                    <Link href="/dashboard" className="flex items-center gap-3 p-3 rounded-lg hover:bg-accent">
+                      <LayoutDashboard className="h-5 w-5" />
+                      <span className="font-medium">{t("navbar.dashboard")}</span>
+                    </Link>
+
+                    <Link href="/tools" className="flex items-center gap-3 p-3 rounded-lg hover:bg-accent">
+                      <Sparkles className="h-5 w-5" />
+                      <span className="font-medium">{t("navbar.tools", "Tools")}</span>
+                    </Link>
+
+                    <Link href="/membership" className="flex items-center gap-3 p-3 rounded-lg hover:bg-accent">
+                      <Shield className="h-5 w-5" />
+                      <span className="font-medium">{t("navbar.membership")}</span>
+                    </Link>
+
+                    <Link href="/support" className="flex items-center gap-3 p-3 rounded-lg hover:bg-accent">
+                      <UserIcon className="h-5 w-5" />
+                      <span className="font-medium">{t("navbar.support")}</span>
+                    </Link>
+
+                    <Link href="/contribute" className="flex items-center gap-3 p-3 rounded-lg hover:bg-accent">
+                      <Sparkles className="h-5 w-5" />
+                      <span className="font-medium">Help Improve</span>
+                    </Link>
+
+                    <div className="border-t pt-4 mt-2">
+                      <Link href="/settings" className="flex items-center gap-3 p-3 rounded-lg hover:bg-accent">
+                        <Settings className="h-5 w-5" />
+                        <span className="font-medium">{t("navbar.settings", "Settings")}</span>
+                      </Link>
+
+                      <button
+                        onClick={handleLogout}
+                        className="w-full flex items-center gap-3 p-3 rounded-lg hover:bg-accent text-red-600"
+                      >
+                        <LogOut className="h-5 w-5" />
+                        <span className="font-medium">{t("navbar.signOut")}</span>
+                      </button>
+                    </div>
+                  </>
+                ) : (
+                  <>
+                    <Button asChild className="w-full">
+                      <Link href="/login">{t("navbar.signIn")}</Link>
+                    </Button>
+                    <Button asChild variant="outline" className="w-full">
+                      <Link href="/register">{t("navbar.signUp")}</Link>
+                    </Button>
+                  </>
+                )}
+
+                {/* Language Selector in Mobile */}
+                <div className="border-t pt-4 mt-2">
+                  <p className="text-sm font-medium mb-2 px-3 text-muted-foreground">Language</p>
+                  <div className="space-y-1">
+                    {LANGUAGES.map((lang) => (
+                      <button
+                        key={lang.code}
+                        onClick={() => handleLanguageChange(lang.code)}
+                        className="w-full flex items-center justify-between p-3 rounded-lg hover:bg-accent"
+                      >
+                        <div className="flex flex-col items-start">
+                          <span className="font-medium">{lang.nativeName}</span>
+                          <span className="text-xs text-muted-foreground">{lang.name}</span>
+                        </div>
+                        {currentLocale === lang.code && (
+                          <Check className="h-4 w-4 text-primary" />
+                        )}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              </div>
+            </SheetContent>
+          </Sheet>
         </div>
       </nav>
     </header>

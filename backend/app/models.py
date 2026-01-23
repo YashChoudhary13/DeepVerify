@@ -14,6 +14,7 @@ class User(Base):
     hashed_password = Column(String, nullable=False)
     full_name = Column(String, nullable=True)
     membership_status = Column(String, default="Free")
+    membership_expiry = Column(DateTime, nullable=True)
     detections_used = Column(Integer, default=0)
     is_active = Column(Boolean, default=True)
     created_at = Column(DateTime, default=datetime.utcnow)
