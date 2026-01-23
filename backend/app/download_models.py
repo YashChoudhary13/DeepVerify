@@ -94,6 +94,17 @@ def download_all_models() -> bool:
         logger.info("=" * 60)
         logger.info("✅ ALL MODELS READY")
         logger.info("=" * 60)
+        
+        # Verify files exist and list them
+        logger.info(f"Verifying models in {MODELS_DIR}...")
+        import os
+        if MODELS_DIR.exists():
+            files = list(MODELS_DIR.glob("*"))
+            logger.info(f"Found {len(files)} files:")
+            for f in files:
+                logger.info(f"  ✓ {f.name} ({f.stat().st_size / 1024 / 1024:.1f}MB)")
+        else:
+            logger.error(f"❌ Models directory does not exist: {MODELS_DIR}")
     else:
         logger.warning("⚠️  Some models failed to download - app may not work correctly")
     
