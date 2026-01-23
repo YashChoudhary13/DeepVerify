@@ -37,7 +37,8 @@ MODEL_URLS = {
     ),
 }
 
-MODELS_DIR = Path("models")
+# Use absolute path to ensure models go to /app/models
+MODELS_DIR = Path("/app/models")
 
 def download_model(filename: str, url: str) -> bool:
     """Download a single model file."""
