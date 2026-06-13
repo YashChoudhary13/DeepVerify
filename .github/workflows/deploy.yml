@@ -18,6 +18,7 @@ jobs:
           host: ${{ secrets.DO_HOST }}
           username: root
           key: ${{ secrets.DO_SSH_KEY }}
+          command_timeout: 20m
           script: |
             cd /apps/deepverify
             git pull origin main
