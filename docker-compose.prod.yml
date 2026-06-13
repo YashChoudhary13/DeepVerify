@@ -1,0 +1,32 @@
+services:
+  api:
+    build: ./backend
+    ports:
+      - "8000:8000"
+    volumes:
+      - ./data:/app/data
+    depends_on:
+      - redis
+    env_file: ./backend/.env
+    restart: unless-stopped
+
+  worker:
+    build: ./backend
+    volumes:
+      - ./data:/app/data
+    depends_on:
+      - redis
+    env_file: ./backend/.env
+    command: celery -A app.tasks.celery worker --loglevel=info
+    healthcheck:
+      disable: true
+    restart: unless-stopped
+
+  redis:
+    image: redis:7-alpine
+    restart: unless-stopped
+    volumes:
+      - redisdata:/data
+
+volumes:
+  redisdata:
