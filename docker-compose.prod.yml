@@ -30,3 +30,11 @@ services:
 
 volumes:
   redisdata:
+
+networks:
+  default:
+    enable_ipv6: true
+    ipam:
+      config:
+        - subnet: "172.20.0.0/16"
+        - subnet: "fd00:0:0:1::/64"
