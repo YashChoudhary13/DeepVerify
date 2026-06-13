@@ -3,6 +3,10 @@ name: Deploy to Droplet
 on:
   push:
     branches: [main]
+    # Backend-only deploy: frontend (Vercel) and docs must not trigger a Droplet rebuild.
+    paths-ignore:
+      - 'frontend/**'
+      - '**.md'
 
 jobs:
   deploy:
