@@ -1,4 +1,6 @@
 /** @type {import('tailwindcss').Config} */
+const { fontFamily } = require("tailwindcss/defaultTheme");
+
 module.exports = {
   darkMode: "class",
   content: [
@@ -11,6 +13,11 @@ module.exports = {
   ],
   theme: {
     extend: {
+      fontFamily: {
+        // Wired to the Inter face loaded via next/font in _app.tsx.
+        // Falls back to the system stack until the web font swaps in.
+        sans: ["var(--font-inter)", ...fontFamily.sans],
+      },
       colors: {
         border: "hsl(var(--border))",
         input: "hsl(var(--input))",
