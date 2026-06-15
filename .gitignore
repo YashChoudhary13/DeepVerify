@@ -30,10 +30,10 @@ yarn-error.log*
 *~
 .DS_Store
 
-# Environment variables
+# Environment variables — never commit any env file or local backups of them
 .env
-.env.local
-.env.*.local
+.env.*
+!.env.example
 
 # Database
 *.db
